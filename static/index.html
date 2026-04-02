@@ -658,6 +658,128 @@
                 color: var(--text-muted);
             }
 
+            /* Floating info tooltip system */
+            #param-tooltip {
+                display: none;
+                position: fixed;
+                z-index: 99999;
+                max-width: 280px;
+                background: #1a2030;
+                border: 1px solid rgba(94,234,212,0.3);
+                border-radius: 10px;
+                padding: 12px 14px;
+                box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+                pointer-events: none;
+            }
+            #param-tooltip .tip-title {
+                font-family: var(--font-mono);
+                font-size: 12px;
+                font-weight: 700;
+                color: var(--accent-cyan, #5eead4);
+                margin-bottom: 6px;
+            }
+            #param-tooltip .tip-body {
+                font-family: var(--font-mono);
+                font-size: 11px;
+                color: #adbac7;
+                line-height: 1.55;
+            }
+            #param-tooltip .tip-effect {
+                margin-top: 7px;
+                display: flex;
+                flex-direction: column;
+                gap: 3px;
+            }
+            #param-tooltip .tip-effect-row {
+                font-family: var(--font-mono);
+                font-size: 10px;
+                display: flex;
+                gap: 5px;
+            }
+            #param-tooltip .tip-effect-row .tip-arrow {
+                flex-shrink: 0;
+                font-size: 11px;
+            }
+            #param-tooltip .tip-example {
+                margin-top: 8px;
+                font-family: var(--font-mono);
+                font-size: 10px;
+                color: var(--text-primary);
+                background: rgba(255,255,255,0.06);
+                border-radius: 5px;
+                padding: 5px 8px;
+                line-height: 1.45;
+            }
+            .info-icon {
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                width: 15px;
+                height: 15px;
+                border-radius: 50%;
+                background: rgba(255,255,255,0.07);
+                border: 1px solid rgba(255,255,255,0.12);
+                color: var(--text-muted);
+                font-size: 9px;
+                font-weight: 700;
+                font-style: italic;
+                font-family: Georgia, serif;
+                cursor: help;
+                flex-shrink: 0;
+                transition: background 0.15s, border-color 0.15s;
+                vertical-align: middle;
+                margin-left: 3px;
+            }
+            .info-icon:hover {
+                background: rgba(94,234,212,0.15);
+                border-color: rgba(94,234,212,0.4);
+                color: var(--accent-cyan, #5eead4);
+            }
+            /* Flow diagram for Entry Rules / Strategy Modules relationship */
+            .config-flow-banner {
+                grid-column: 1 / -1;
+                background: rgba(94,234,212,0.05);
+                border: 1px solid rgba(94,234,212,0.15);
+                border-radius: 10px;
+                padding: 12px 16px;
+                display: flex;
+                align-items: center;
+                gap: 0;
+                flex-wrap: wrap;
+                font-family: var(--font-mono);
+                font-size: 11px;
+                margin-bottom: 4px;
+            }
+            .flow-step {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                text-align: center;
+                padding: 0 12px;
+            }
+            .flow-step-icon {
+                font-size: 18px;
+                margin-bottom: 3px;
+            }
+            .flow-step-label {
+                font-weight: 700;
+                color: var(--accent-cyan, #5eead4);
+                font-size: 11px;
+            }
+            .flow-step-sub {
+                color: var(--text-muted);
+                font-size: 10px;
+                margin-top: 1px;
+                max-width: 120px;
+                line-height: 1.3;
+            }
+            .flow-arrow {
+                color: var(--text-muted);
+                font-size: 16px;
+                padding: 0 4px;
+                flex-shrink: 0;
+            }
+
             /* Strategy module toggle switches */
             .strategy-toggle {
                 position: relative;
@@ -1703,6 +1825,39 @@
                                 gap: 20px;
                             "
                         >
+                            <!-- Flow diagram: how the three columns relate -->
+                            <div class="config-flow-banner">
+                                <div class="flow-step">
+                                    <div class="flow-step-icon">🔀</div>
+                                    <div class="flow-step-label">Strategy Modules</div>
+                                    <div class="flow-step-sub">Toggle signals ON/OFF. Disabled signals don't score.</div>
+                                </div>
+                                <div class="flow-arrow">→</div>
+                                <div class="flow-step">
+                                    <div class="flow-step-icon">🎛️</div>
+                                    <div class="flow-step-label">Entry Rules</div>
+                                    <div class="flow-step-sub">Set threshold sensitivity for each active signal.</div>
+                                </div>
+                                <div class="flow-arrow">→</div>
+                                <div class="flow-step">
+                                    <div class="flow-step-icon">📊</div>
+                                    <div class="flow-step-label">Score per Candle</div>
+                                    <div class="flow-step-sub">Each active signal votes +1 if threshold is met.</div>
+                                </div>
+                                <div class="flow-arrow">→</div>
+                                <div class="flow-step">
+                                    <div class="flow-step-icon">🎯</div>
+                                    <div class="flow-step-label">Min Score Gate</div>
+                                    <div class="flow-step-sub">Trade only when score ≥ min. Consensus required.</div>
+                                </div>
+                                <div class="flow-arrow">→</div>
+                                <div class="flow-step">
+                                    <div class="flow-step-icon">💰</div>
+                                    <div class="flow-step-label">Trade Placed</div>
+                                    <div class="flow-step-sub">Kalshi YES (UP) or NO (DOWN) contract opened.</div>
+                                </div>
+                            </div>
+
                             <!-- Strategy Mode -->
                             <div>
                                 <div
@@ -1780,85 +1935,90 @@
 
                             <!-- Entry Rules -->
                             <div>
-                                <div style="font-family: var(--font-mono); font-size: 11px; font-weight: 600; color: var(--accent-blue); margin-bottom: 12px;">
+                                <div style="font-family: var(--font-mono); font-size: 11px; font-weight: 600; color: var(--accent-blue); margin-bottom: 4px; display:flex; align-items:center; gap:6px;">
                                     ENTRY RULES
+                                    <span class="info-icon" data-tip='{"title":"What are Entry Rules?","body":"Entry Rules set the SENSITIVITY of each signal — how strict the conditions must be before a signal fires. They do not turn signals on or off (that is Strategy Modules). Think of them as dial knobs for each active signal.","example":"Flow: Strategy Module ON/OFF → Entry Rule threshold → Min Score gate → Trade"}'>i</span>
+                                </div>
+                                <div style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted);margin-bottom:12px;line-height:1.5;">
+                                    Threshold sensitivity for each active signal.<br/>
+                                    <span style="color:var(--accent-cyan,#5eead4);">Strategy Modules</span> decide <em>which</em> signals count.
                                 </div>
                                 <div style="display: flex; flex-direction: column; gap: 10px;">
 
                                     <!-- Min Score -->
-                                    <label style="display: flex; align-items: center; gap: 8px; font-family: var(--font-mono); font-size: 12px; color: var(--text-primary); cursor: pointer;"
-                                        data-tooltip="Minimum signal score (0-5) to open a trade. Each of the 5 signals contributes 1 point. Higher = fewer but higher quality trades.">
-                                        <input type="number" id="cfg_min_score" value="3" min="1" max="5" step="0.5"
+                                    <label style="display: flex; align-items: center; gap: 8px; font-family: var(--font-mono); font-size: 12px; color: var(--text-primary);">
+                                        <input type="number" id="cfg_min_score" value="3" min="1" max="7" step="0.5"
                                             style="width: 50px; padding: 4px 8px; font-family: var(--font-mono); font-size: 12px; background: var(--bg-stat); border: 1px solid var(--border-color); border-radius: 4px; color: var(--text-primary);" />
-                                        Min Score (1-5)
+                                        Min Score
+                                        <span class="info-icon" data-tip='{"title":"Min Score — Consensus Gate","body":"How many enabled signals must agree (score points in the same direction) before a trade is placed. Max score = number of enabled signals.","higher":"Fewer trades, only highest-conviction setups. Reduces overtrading.","lower":"More trades, less selective. Risk of noisy entries.","example":"7 signals enabled, Min Score 4 = 57% consensus needed. Score 3 = 43%. Start at 3, tune up if win rate is low."}'>i</span>
                                     </label>
 
                                     <!-- RSI(5) thresholds -->
-                                    <label style="display: flex; align-items: center; gap: 8px; font-family: var(--font-mono); font-size: 12px; color: var(--text-primary);"
-                                        data-tooltip="RSI(5) above this = bullish momentum signal. Default 55. Lower = more trades, higher = stronger signal required.">
+                                    <label style="display: flex; align-items: center; gap: 8px; font-family: var(--font-mono); font-size: 12px; color: var(--text-primary);">
                                         <input type="number" id="cfg_rsi5_bull" value="55" min="50" max="80" step="1"
                                             style="width: 50px; padding: 4px 8px; font-family: var(--font-mono); font-size: 12px; background: var(--bg-stat); border: 1px solid var(--border-color); border-radius: 4px; color: var(--text-primary);" />
-                                        RSI(5) Bull Threshold
+                                        RSI Bull
+                                        <span class="info-icon" data-tip='{"title":"RSI(5) Bull Threshold","body":"RSI(5) is a fast 5-period momentum oscillator (0–100). When RSI is above this value, the RSI signal votes +1 for UP. RSI(5) responds quickly to single-candle momentum.","higher":"Only triggers on strong upward momentum. Fewer bull signals.","lower":"Triggers more often. 50 = any upward tilt counts.","example":"Default 55: RSI must show clear bullish pressure, not just neutral. Try 58–62 for stricter entries."}'>i</span>
                                     </label>
-                                    <label style="display: flex; align-items: center; gap: 8px; font-family: var(--font-mono); font-size: 12px; color: var(--text-primary);"
-                                        data-tooltip="RSI(5) below this = bearish momentum signal. Default 45. Higher = more trades, lower = stronger signal required.">
+                                    <label style="display: flex; align-items: center; gap: 8px; font-family: var(--font-mono); font-size: 12px; color: var(--text-primary);">
                                         <input type="number" id="cfg_rsi5_bear" value="45" min="20" max="50" step="1"
                                             style="width: 50px; padding: 4px 8px; font-family: var(--font-mono); font-size: 12px; background: var(--bg-stat); border: 1px solid var(--border-color); border-radius: 4px; color: var(--text-primary);" />
-                                        RSI(5) Bear Threshold
+                                        RSI Bear
+                                        <span class="info-icon" data-tip='{"title":"RSI(5) Bear Threshold","body":"When RSI(5) is below this value, the RSI signal votes +1 for DOWN. Mirror of the bull threshold.","higher":"Triggers bear signal more often (closer to 50). Less selective.","lower":"Only triggers on strong downward momentum. Stricter bear signal.","example":"Default 45: RSI must show genuine bearish pressure. Pair with Bull 55 to create a 10-point neutral zone."}'>i</span>
                                     </label>
 
                                     <!-- Close Position thresholds -->
-                                    <label style="display: flex; align-items: center; gap: 8px; font-family: var(--font-mono); font-size: 12px; color: var(--text-primary);"
-                                        data-tooltip="If candle closes above this % of its range, counts as bullish. Default 0.65 (top 35% of range).">
+                                    <label style="display: flex; align-items: center; gap: 8px; font-family: var(--font-mono); font-size: 12px; color: var(--text-primary);">
                                         <input type="number" id="cfg_close_pos_bull" value="0.65" min="0.5" max="0.9" step="0.05"
                                             style="width: 55px; padding: 4px 8px; font-family: var(--font-mono); font-size: 12px; background: var(--bg-stat); border: 1px solid var(--border-color); border-radius: 4px; color: var(--text-primary);" />
-                                        Close Pos Bull (0-1)
+                                        CP Bull
+                                        <span class="info-icon" data-tip='{"title":"Close Position — Bull Level","body":"Measures WHERE in the candle range price closed. 0.0 = closed at the low, 1.0 = closed at the high. This value = minimum fraction required to vote bull.","higher":"Price must close even higher in the range. Very strong close required.","lower":"Any close above the midpoint roughly qualifies. More trades.","example":"0.65 = price closed in top 35% of range → bull signal. A 15m candle that goes from $60,000 to $60,300 and closes at $60,240 = close pos 0.80 → bull."}'>i</span>
                                     </label>
-                                    <label style="display: flex; align-items: center; gap: 8px; font-family: var(--font-mono); font-size: 12px; color: var(--text-primary);"
-                                        data-tooltip="If candle closes below this % of its range, counts as bearish. Default 0.35 (bottom 35% of range).">
+                                    <label style="display: flex; align-items: center; gap: 8px; font-family: var(--font-mono); font-size: 12px; color: var(--text-primary);">
                                         <input type="number" id="cfg_close_pos_bear" value="0.35" min="0.1" max="0.5" step="0.05"
                                             style="width: 55px; padding: 4px 8px; font-family: var(--font-mono); font-size: 12px; background: var(--bg-stat); border: 1px solid var(--border-color); border-radius: 4px; color: var(--text-primary);" />
-                                        Close Pos Bear (0-1)
+                                        CP Bear
+                                        <span class="info-icon" data-tip='{"title":"Close Position — Bear Level","body":"Close position below this value votes +1 for DOWN. Price closed in the bottom portion of the candle range, showing sellers dominated.","higher":"Less strict — any close in lower half roughly qualifies.","lower":"More strict — price must close near the absolute low.","example":"0.35 = closed in bottom 35% of range. Candle from $60,300 to $60,000, closes at $60,090 = close pos 0.30 → bear."}'>i</span>
                                     </label>
 
                                     <!-- Body Ratio -->
-                                    <label style="display: flex; align-items: center; gap: 8px; font-family: var(--font-mono); font-size: 12px; color: var(--text-primary);"
-                                        data-tooltip="Candle body must be at least this fraction of total range to count as a strong candle. Default 0.55. Higher = only count full-body candles.">
+                                    <label style="display: flex; align-items: center; gap: 8px; font-family: var(--font-mono); font-size: 12px; color: var(--text-primary);">
                                         <input type="number" id="cfg_body_ratio" value="0.55" min="0.2" max="0.9" step="0.05"
                                             style="width: 55px; padding: 4px 8px; font-family: var(--font-mono); font-size: 12px; background: var(--bg-stat); border: 1px solid var(--border-color); border-radius: 4px; color: var(--text-primary);" />
-                                        Body Strength Min (0-1)
+                                        Body Min
+                                        <span class="info-icon" data-tip='{"title":"Body Strength — Minimum Body Ratio","body":"Body ratio = candle body size ÷ total range (high−low). A ratio of 1.0 is a pure body candle (no wicks). A ratio of 0.0 is a pure wick (no body = doji).","higher":"Only solid conviction candles with little wicking qualify. Very selective.","lower":"Candles with more wicks still qualify. Less strict.","example":"0.55 = body must be 55%+ of range. A candle with a 150pt range must have a 82.5pt+ body. Spinning tops (0.1–0.3 body) would not fire this signal."}'>i</span>
                                     </label>
 
                                     <!-- Doji Threshold -->
-                                    <label style="display: flex; align-items: center; gap: 8px; font-family: var(--font-mono); font-size: 12px; color: var(--text-primary);"
-                                        data-tooltip="Skip trade if body ratio is below this — candle has no conviction. Default 0.15.">
+                                    <label style="display: flex; align-items: center; gap: 8px; font-family: var(--font-mono); font-size: 12px; color: var(--text-primary);">
                                         <input type="number" id="cfg_doji_threshold" value="0.15" min="0.05" max="0.4" step="0.05"
                                             style="width: 55px; padding: 4px 8px; font-family: var(--font-mono); font-size: 12px; background: var(--bg-stat); border: 1px solid var(--border-color); border-radius: 4px; color: var(--text-primary);" />
-                                        Doji Skip Threshold
+                                        Doji Veto
+                                        <span class="info-icon" data-tip='{"title":"Doji Veto — Global Skip Threshold","body":"GLOBAL veto: if body ratio is below this, NO trade is placed regardless of score. A doji (cross-shaped candle with equal open/close) has no directional edge — both buyers and sellers were equal.","higher":"Skip more candles including spinning tops. More selective, fewer trades.","lower":"Only skip near-perfect doji candles. More permissive.","example":"0.15 = skip if body < 15% of range. A 15m candle that moved $200 total but only $20 body → doji → SKIP. Protects against entering on pure noise candles."}'>i</span>
                                     </label>
 
                                     <!-- Volume Ratio -->
-                                    <label style="display: flex; align-items: center; gap: 8px; font-family: var(--font-mono); font-size: 12px; color: var(--text-primary);"
-                                        data-tooltip="Volume must be at least this multiple of the 20-bar average to count as high-volume confirmation. Default 1.3x.">
+                                    <label style="display: flex; align-items: center; gap: 8px; font-family: var(--font-mono); font-size: 12px; color: var(--text-primary);">
                                         <input type="number" id="cfg_volume_ratio" value="1.3" min="1.0" max="3.0" step="0.1"
                                             style="width: 55px; padding: 4px 8px; font-family: var(--font-mono); font-size: 12px; background: var(--bg-stat); border: 1px solid var(--border-color); border-radius: 4px; color: var(--text-primary);" />
-                                        Volume Confirm (x avg)
+                                        Volume Min
+                                        <span class="info-icon" data-tip='{"title":"Volume Confirmation Ratio","body":"Compares current candle volume to the rolling 20-bar average. High volume in the candle direction = institutional participation, more reliable signal.","higher":"Only fire on significant volume spikes. Fewer but more reliable signals.","lower":"Fires on any slightly-above-average volume. More frequent.","example":"1.3 = volume must be 30% above average. If avg is 500 BTC, candle must trade 650+ BTC. A 2.0x volume spike on a green candle strongly suggests buy-side pressure."}'>i</span>
                                     </label>
 
                                     <!-- Wick Ratio -->
-                                    <label style="display: flex; align-items: center; gap: 8px; font-family: var(--font-mono); font-size: 12px; color: var(--text-primary);"
-                                        data-tooltip="Minimum wick size (as fraction of range) to count as a wick rejection signal. Default 0.3.">
+                                    <label style="display: flex; align-items: center; gap: 8px; font-family: var(--font-mono); font-size: 12px; color: var(--text-primary);">
                                         <input type="number" id="cfg_wick_ratio" value="0.3" min="0.1" max="0.6" step="0.05"
                                             style="width: 55px; padding: 4px 8px; font-family: var(--font-mono); font-size: 12px; background: var(--bg-stat); border: 1px solid var(--border-color); border-radius: 4px; color: var(--text-primary);" />
-                                        Wick Rejection Min
+                                        Wick Min
+                                        <span class="info-icon" data-tip='{"title":"Wick Rejection — Minimum Wick Ratio","body":"Wick ratio = wick length ÷ total candle range. A long lower wick on a green candle = price was pushed down but buyers rejected the low and closed up (bullish). A long upper wick = sellers rejected the high (bearish).","higher":"Only detect strong, decisive rejection wicks. More reliable.","lower":"Shorter wicks qualify. More signals, potentially more noise.","example":"0.3 = wick must be 30%+ of range. Candle range $200, lower wick $70 = 0.35 → qualifies. Upper wick $50 = 0.25 → does not qualify as rejection."}'>i</span>
                                     </label>
 
                                     <!-- Consecutive Penalty -->
-                                    <label style="display: flex; align-items: center; gap: 8px; font-family: var(--font-mono); font-size: 12px; color: var(--text-primary);"
-                                        data-tooltip="After this many consecutive same-color candles, apply mean reversion penalty (-1 score). Default 4. Higher = less mean reversion filtering.">
+                                    <label style="display: flex; align-items: center; gap: 8px; font-family: var(--font-mono); font-size: 12px; color: var(--text-primary);">
                                         <input type="number" id="cfg_consecutive_penalty" value="4" min="2" max="10" step="1"
                                             style="width: 50px; padding: 4px 8px; font-family: var(--font-mono); font-size: 12px; background: var(--bg-stat); border: 1px solid var(--border-color); border-radius: 4px; color: var(--text-primary);" />
-                                        Mean Reversion Candles
+                                        Streak Trigger
+                                        <span class="info-icon" data-tip='{"title":"Mean Reversion Streak Trigger","body":"After this many consecutive same-color candles, mean reversion activates: the same-direction score is penalized −1, and (if Boost is ON) the opposite direction gets +1. BTC rarely trends more than 4–6 candles before reverting.","higher":"Only trigger after longer streaks. Less mean reversion filtering.","lower":"Trigger after shorter streaks. More aggressive mean reversion betting.","example":"4 = after 4 consecutive green candles: green score −1, red score +1 (if boost on). Historical BTC 15m: 5+ consecutive same-color candles revert ~58% of the time."}'>i</span>
                                     </label>
 
                                 </div>
@@ -2905,12 +3065,14 @@
                                         </div>
                                     </div>
                                     <div class="bt-signal-params">
-                                        <label class="bt-param-label" title="Bull: price closed in upper 35% of range">
+                                        <label class="bt-param-label">
                                             Bull ≥
+                                            <span class="info-icon" data-tip='{"title":"CP Bull Level","body":"Price closed in the top X% of the candle range → bullish vote. 0.65 = top 35%.","higher":"Stricter. Only very high closes count.","lower":"More permissive. Any above-midpoint close counts."}'>i</span>
                                             <input type="number" id="bt-close-pos-bull" value="0.65" min="0.5" max="0.95" step="0.05" class="bt-param-input" style="width:46px;" />
                                         </label>
-                                        <label class="bt-param-label" title="Bear: price closed in lower 35% of range">
+                                        <label class="bt-param-label">
                                             Bear ≤
+                                            <span class="info-icon" data-tip='{"title":"CP Bear Level","body":"Price closed in the bottom X% of the range → bearish vote. 0.35 = bottom 35%.","higher":"Less strict bear filter.","lower":"Only very low closes count as bearish."}'>i</span>
                                             <input type="number" id="bt-close-pos-bear" value="0.35" min="0.05" max="0.5" step="0.05" class="bt-param-input" style="width:46px;" />
                                         </label>
                                     </div>
@@ -2929,8 +3091,9 @@
                                         </div>
                                     </div>
                                     <div class="bt-signal-params">
-                                        <label class="bt-param-label" title="Min wick-to-range ratio to count as a rejection wick">
+                                        <label class="bt-param-label">
                                             Min Wick
+                                            <span class="info-icon" data-tip='{"title":"Minimum Wick Ratio","body":"Wick ÷ total range. Lower wick on green candle = bulls rejected the low. Upper wick on red = sellers rejected the high.","higher":"Only strong rejection wicks fire the signal.","lower":"Shorter wicks qualify. More signals.","example":"0.3 = wick must be 30%+ of full candle range."}'>i</span>
                                             <input type="number" id="bt-wick-ratio" value="0.3" min="0.1" max="0.6" step="0.05" class="bt-param-input" style="width:46px;" />
                                         </label>
                                     </div>
@@ -2949,12 +3112,14 @@
                                         </div>
                                     </div>
                                     <div class="bt-signal-params">
-                                        <label class="bt-param-label" title="Min body-to-range ratio for strong candle">
+                                        <label class="bt-param-label">
                                             Min Body
+                                            <span class="info-icon" data-tip='{"title":"Minimum Body Ratio","body":"Body (open→close distance) ÷ total range. High ratio = solid candle with little wicking.","higher":"Only full-bodied candles qualify.","lower":"Candles with more wicks still count.","example":"0.55 = body is 55%+ of range. Spinning tops rejected."}'>i</span>
                                             <input type="number" id="bt-body-ratio" value="0.55" min="0.2" max="0.9" step="0.05" class="bt-param-input" style="width:46px;" />
                                         </label>
-                                        <label class="bt-param-label" title="Body ratio below this = doji → skip trade (global veto)">
+                                        <label class="bt-param-label">
                                             Doji ≤
+                                            <span class="info-icon" data-tip='{"title":"Doji Veto (Global)","body":"If body ratio is below this, the candle is a doji — no trade regardless of score. Protects against entering on pure noise candles.","higher":"Skip more candles, including spinning tops.","lower":"Only skip near-perfect cross candles.","example":"0.15 = body must be 15%+ of range or we skip entirely."}'>i</span>
                                             <input type="number" id="bt-doji" value="0.15" min="0.05" max="0.4" step="0.05" class="bt-param-input" style="width:46px;" />
                                         </label>
                                     </div>
@@ -2973,12 +3138,14 @@
                                         </div>
                                     </div>
                                     <div class="bt-signal-params">
-                                        <label class="bt-param-label" title="RSI(5) above this = bullish momentum">
+                                        <label class="bt-param-label">
                                             Bull &gt;
+                                            <span class="info-icon" data-tip='{"title":"RSI(5) Bull Threshold","body":"RSI(5) above this value = bullish momentum vote. RSI(5) is very fast-reacting, ideal for next-candle prediction.","higher":"Only strong momentum triggers. Fewer bull signals.","lower":"Any slight upward momentum counts.","example":"55 = RSI must show genuine bullish pressure, not just drift."}'>i</span>
                                             <input type="number" id="bt-rsi5-bull" value="55" min="50" max="80" step="1" class="bt-param-input" style="width:42px;" />
                                         </label>
-                                        <label class="bt-param-label" title="RSI(5) below this = bearish momentum">
+                                        <label class="bt-param-label">
                                             Bear &lt;
+                                            <span class="info-icon" data-tip='{"title":"RSI(5) Bear Threshold","body":"RSI(5) below this = bearish momentum vote. Mirror of the bull threshold.","higher":"Less strict — easier to trigger bear signal.","lower":"Only strong downward momentum counts.","example":"45 = RSI must be below 45 to vote bearish."}'>i</span>
                                             <input type="number" id="bt-rsi5-bear" value="45" min="20" max="50" step="1" class="bt-param-input" style="width:42px;" />
                                         </label>
                                     </div>
@@ -2997,8 +3164,9 @@
                                         </div>
                                     </div>
                                     <div class="bt-signal-params">
-                                        <label class="bt-param-label" title="Volume must be this multiple of 20-bar average">
+                                        <label class="bt-param-label">
                                             Min Ratio
+                                            <span class="info-icon" data-tip='{"title":"Volume Confirmation Ratio","body":"Current candle volume ÷ rolling 20-bar average volume. High volume in candle direction = institutional participation = reliable signal.","higher":"Only spike volume triggers. Fewer, more reliable signals.","lower":"Slightly above average volume qualifies. More trades.","example":"1.3 = 30% above average. If avg is 500 BTC/candle, need 650+ BTC."}'>i</span>
                                             <input type="number" id="bt-vol-ratio" value="1.3" min="1.0" max="3.0" step="0.1" class="bt-param-input" style="width:46px;" />
                                         </label>
                                     </div>
@@ -3032,8 +3200,9 @@
                                         </div>
                                     </div>
                                     <div class="bt-signal-params">
-                                        <label class="bt-param-label" title="Consecutive same-color candles before mean reversion triggers">
+                                        <label class="bt-param-label">
                                             Streak ≥
+                                            <span class="info-icon" data-tip='{"title":"Mean Reversion Streak Trigger","body":"After this many consecutive same-color candles: penalize that direction (−1) and boost opposite (+1 if boost enabled). Exploits the statistical tendency for BTC to revert after extended runs.","higher":"Only trigger after longer streaks. Less mean reversion.","lower":"Shorter streaks trigger the signal. More aggressive contrarian betting.","example":"4 = 4 green candles in a row → red gets a +1 boost next candle. Historical: 5+ consecutive candles revert ~58% of time."}'>i</span>
                                             <input type="number" id="bt-consec" value="4" min="2" max="10" step="1" class="bt-param-input" style="width:38px;" />
                                         </label>
                                     </div>
@@ -5108,6 +5277,53 @@
                 btSetAllSignals(true);
             });
 
+            // ── Info tooltip system ──────────────────────────────────
+            function initInfoTooltips() {
+                const tip = document.getElementById('param-tooltip');
+                if (!tip) return;
+                function pos(e) {
+                    const r = tip.getBoundingClientRect();
+                    let x = e.clientX + 14, y = e.clientY - r.height - 10;
+                    if (x + r.width > window.innerWidth - 10) x = e.clientX - r.width - 14;
+                    if (y < 8) y = e.clientY + 14;
+                    tip.style.left = x + 'px';
+                    tip.style.top  = y + 'px';
+                }
+                document.querySelectorAll('.info-icon[data-tip]').forEach(el => {
+                    el.addEventListener('mouseenter', e => {
+                        const d = JSON.parse(el.dataset.tip);
+                        tip.querySelector('.tip-title').textContent = d.title || '';
+                        tip.querySelector('.tip-body').textContent  = d.body  || '';
+                        const ef = tip.querySelector('.tip-effect');
+                        ef.innerHTML = '';
+                        if (d.higher) {
+                            const row = document.createElement('div');
+                            row.className = 'tip-effect-row';
+                            row.innerHTML = `<span class="tip-arrow" style="color:#f97316;">▲</span>&nbsp;<span style="color:#f97316;font-weight:600;">Higher:</span>&nbsp;<span style="color:#adbac7;">${d.higher}</span>`;
+                            ef.appendChild(row);
+                        }
+                        if (d.lower) {
+                            const row = document.createElement('div');
+                            row.className = 'tip-effect-row';
+                            row.innerHTML = `<span class="tip-arrow" style="color:#60a5fa;">▼</span>&nbsp;<span style="color:#60a5fa;font-weight:600;">Lower:</span>&nbsp;<span style="color:#adbac7;">${d.lower}</span>`;
+                            ef.appendChild(row);
+                        }
+                        const ex = tip.querySelector('.tip-example');
+                        ex.textContent = d.example || '';
+                        ex.style.display = d.example ? 'block' : 'none';
+                        tip.style.display = 'block';
+                        pos(e);
+                    });
+                    el.addEventListener('mousemove', pos);
+                    el.addEventListener('mouseleave', () => { tip.style.display = 'none'; });
+                });
+            }
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', initInfoTooltips);
+            } else {
+                setTimeout(initInfoTooltips, 100);
+            }
+
             async function btRun() {
                 const btn = document.getElementById("bt-run-btn");
                 btn.textContent = "⟳ Running...";
@@ -5297,5 +5513,12 @@
                 btRenderTradeTable();
             }
         </script>
+    <!-- Floating param tooltip -->
+    <div id="param-tooltip">
+        <div class="tip-title"></div>
+        <div class="tip-body"></div>
+        <div class="tip-effect"></div>
+        <div class="tip-example"></div>
+    </div>
     </body>
 </html>
