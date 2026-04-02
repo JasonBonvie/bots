@@ -141,6 +141,8 @@ class SignalScheduler:
                     "wick_ratio_min": cfg.wick_ratio_min,
                     "consecutive_penalty": cfg.consecutive_penalty,
                     "min_score": cfg.min_score,
+                    "use_engulfing": cfg.use_engulfing,
+                    "mean_reversion_boost": cfg.mean_reversion_boost,
                 }
 
             import functools

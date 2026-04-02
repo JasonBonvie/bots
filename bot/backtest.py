@@ -175,8 +175,35 @@ class BacktestEngine:
         # Shift all candle metrics by 1 — we're computing signal from the CLOSED candle
         # to predict the NEXT candle (same as live signals.py using iloc[-2])
         for col in ["close_position", "body_ratio", "candle_is_green",
-                    "upper_wick_ratio", "lower_wick_ratio", "volume_ratio", "rsi5"]:
+                    "upper_wick_ratio", "lower_wick_ratio", "volume_ratio", "rsi5",
+                    "open", "close"]:
             df[f"s_{col}"] = df[col].shift(1)
+
+        # Engulfing pattern — signal candle (shift 1) vs candle before it (shift 2)
+        # Bullish: signal candle is green AND fully covers previous red body
+        # Bearish: signal candle is red AND fully covers previous green body
+        pp_open  = df["open"].shift(2)   # prev-prev candle open
+        pp_close = df["close"].shift(2)  # prev-prev candle close
+        pp_body_top = pd.concat([pp_open, pp_close], axis=1).max(axis=1)
+        pp_body_bot = pd.concat([pp_open, pp_close], axis=1).min(axis=1)
+        s_body_top  = pd.concat([df["s_open"], df["s_close"]], axis=1).max(axis=1)
+        s_body_bot  = pd.concat([df["s_open"], df["s_close"]], axis=1).min(axis=1)
+
+        pp_is_red   = pp_close < pp_open
+        pp_is_green = pp_close > pp_open
+        s_is_green  = df["s_close"] > df["s_open"]
+        s_is_red    = df["s_close"] < df["s_open"]
+
+        df["bull_engulfing"] = (
+            s_is_green & pp_is_red &
+            (s_body_bot <= pp_body_bot) &
+            (s_body_top >= pp_body_top)
+        ).fillna(False)
+        df["bear_engulfing"] = (
+            s_is_red & pp_is_green &
+            (s_body_top >= pp_body_top) &
+            (s_body_bot <= pp_body_bot)
+        ).fillna(False)
 
         # ── Consecutive same-color candle count ──────────────────────
         # Vectorized: count consecutive same-color candles ending at each row
@@ -235,11 +262,19 @@ class BacktestEngine:
         sc_up += high_vol_green.astype(float)
         sc_dn += high_vol_red.astype(float)
 
-        # Mean Reversion Penalty: 4+ consecutive same-color candles
+        # Signal 6: Engulfing Pattern
+        if p.use_engulfing:
+            sc_up += df["bull_engulfing"].astype(float)
+            sc_dn += df["bear_engulfing"].astype(float)
+
+        # Mean Reversion Penalty + optional Boost
         penalty_green = (df["s_consecutive"] >= p.consecutive_penalty) & s_green
         penalty_red   = (df["s_consecutive"] >= p.consecutive_penalty) & s_red
         sc_up = (sc_up - penalty_green.astype(float)).clip(lower=0)
         sc_dn = (sc_dn - penalty_red.astype(float)).clip(lower=0)
+        if p.mean_reversion_boost:
+            sc_dn += penalty_green.astype(float)  # boost bear when green streak ends
+            sc_up += penalty_red.astype(float)    # boost bull when red streak ends
 
         df["score_up"] = sc_up
         df["score_dn"] = sc_dn

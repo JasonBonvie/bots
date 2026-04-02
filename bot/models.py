@@ -108,6 +108,8 @@ class BacktestParams(BaseModel):
     volume_ratio_min: float = 1.3       # min volume ratio for confirm
     wick_ratio_min: float = 0.3         # min wick ratio for rejection signal
     consecutive_penalty: int = 4        # consecutive candles before mean reversion penalty
+    use_engulfing: bool = True           # +1 when candle body fully swallows previous body
+    mean_reversion_boost: bool = True    # add +1 to opposite direction on streak (not just penalty)
     require_prev_candle_match: bool = False  # only trade when signal matches prev candle
     # Legacy (kept for API compatibility, not used in scoring)
     require_ema: bool = False

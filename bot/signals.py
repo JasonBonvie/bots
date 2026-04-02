@@ -5,16 +5,18 @@ Strategy: predict whether the NEXT 15-minute BTC candle closes green or red.
 Uses microstructure signals tuned for short-term candle-level prediction,
 NOT trend-following indicators.
 
-Scoring system (0-5 each direction):
+Scoring system (0-7 each direction with all strategies enabled):
   +1  Close position  — where price closed in the candle range (> 0.65 bull | < 0.35 bear)
   +1  Wick rejection  — long wick against direction signals reversal
   +1  Body strength   — strong full-body candle suggests continuation
   +1  RSI(5)          — short-period momentum (>55 bull | <45 bear)
   +1  Volume confirm  — high volume in candle direction adds conviction
+  +1  Engulfing       — candle body fully swallows previous candle body (reversal signal)
+  +1  Mean rev boost  — 4+ consecutive same-color candles → boost OPPOSITE direction
 
-Bonus / veto:
-  Consecutive candles: 3+ same color adds mean-reversion pressure (reduces score)
+Veto / penalties:
   Doji candle: very small body → SKIP (no edge)
+  Mean rev penalty: 4+ same-color candles → reduce SAME direction score by 1
 """
 
 import json
@@ -101,6 +103,8 @@ def compute_signals(
     wick_ratio_min: float = 0.3,
     consecutive_penalty: int = 4,
     min_score: float = 3.0,
+    use_engulfing: bool = True,
+    mean_reversion_boost: bool = True,
 ) -> SignalResult:
     """
     Compute next-candle color prediction signals from BTC/USDT 15m data.
@@ -127,7 +131,7 @@ def compute_signals(
 
     current_price = float(df["close"].iloc[-1])
 
-    # --- Prev candle color (for display) ---
+    # --- Prev candle (one before the signal candle, for display + engulfing) ---
     prev_candle = df.iloc[-3]
     prev_open  = float(prev_candle["open"])
     prev_close = float(prev_candle["close"])
@@ -139,6 +143,27 @@ def compute_signals(
         prev_candle_color = "NEUTRAL"
 
     price_change_pct = ((c_close - prev_close) / prev_close) * 100 if prev_close else 0.0
+
+    # ── Engulfing pattern (uses prev candle body vs signal candle body) ──
+    # Bullish engulfing: signal candle is GREEN and fully swallows previous RED body
+    # Bearish engulfing: signal candle is RED and fully swallows previous GREEN body
+    prev_is_red   = prev_close < prev_open
+    prev_is_green = prev_close > prev_open
+    # Body bounds of the previous candle
+    prev_body_top = max(prev_open, prev_close)
+    prev_body_bot = min(prev_open, prev_close)
+    # Body bounds of the signal candle
+    sig_body_top = max(c_open, c_close)
+    sig_body_bot = min(c_open, c_close)
+
+    bullish_engulfing = (
+        candle_is_green and prev_is_red and
+        sig_body_bot <= prev_body_bot and sig_body_top >= prev_body_top
+    )
+    bearish_engulfing = (
+        not candle_is_green and prev_is_green and
+        sig_body_top >= prev_body_top and sig_body_bot <= prev_body_bot
+    )
 
     # ── Derived candle metrics ────────────────────────────────────────
     candle_range = c_high - c_low
@@ -256,14 +281,32 @@ def compute_signals(
             score_dn += 1
             filters_passed += 1
 
-    # ── Mean Reversion Penalty ───────────────────────────────────
+    # ── Signal 6: Engulfing Pattern ──────────────────────────────────
+    engulfing_signal = None
+    if use_engulfing:
+        if bullish_engulfing:
+            score_up += 1
+            filters_passed += 1
+            engulfing_signal = "BULL"
+            logger.debug("Bullish engulfing: green candle swallows previous red body")
+        elif bearish_engulfing:
+            score_dn += 1
+            filters_passed += 1
+            engulfing_signal = "BEAR"
+            logger.debug("Bearish engulfing: red candle swallows previous green body")
+
+    # ── Mean Reversion Penalty + Boost ───────────────────────────────
     if consecutive >= consecutive_penalty:
         if candle_is_green:
             score_up = max(0, score_up - 1)
-            logger.debug(f"Mean reversion penalty: {consecutive} consecutive green candles")
+            if mean_reversion_boost:
+                score_dn += 1
+            logger.debug(f"Mean reversion: {consecutive} consecutive green → penalty↑ boost↓")
         else:
             score_dn = max(0, score_dn - 1)
-            logger.debug(f"Mean reversion penalty: {consecutive} consecutive red candles")
+            if mean_reversion_boost:
+                score_up += 1
+            logger.debug(f"Mean reversion: {consecutive} consecutive red → penalty↓ boost↑")
 
     # ── Doji Veto ─────────────────────────────────────────────────
     doji = body_ratio < doji_threshold
@@ -317,7 +360,7 @@ def compute_signals(
         direction=direction,
         confidence=confidence,
         filters_passed=filters_passed,
-        filters_total=5,
+        filters_total=6 if use_engulfing else 5,
         rsi_filter=rsi_filter,
         macd_filter=macd_filter,
         volume_filter=volume_filter,
