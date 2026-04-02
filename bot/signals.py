@@ -87,7 +87,21 @@ def fetch_ohlcv_with_retry(
     raise RuntimeError(f"Failed to fetch OHLCV data after {max_retries} retries: {last_error}")
 
 
-def compute_signals(symbol: str = "BTCUSDT", exchange: str = "Binance", bars: int = 50) -> SignalResult:
+def compute_signals(
+    symbol: str = "BTCUSDT",
+    exchange: str = "Binance",
+    bars: int = 50,
+    rsi5_bull: float = 55.0,
+    rsi5_bear: float = 45.0,
+    close_pos_bull: float = 0.65,
+    close_pos_bear: float = 0.35,
+    body_ratio_min: float = 0.55,
+    doji_threshold: float = 0.15,
+    volume_ratio_min: float = 1.3,
+    wick_ratio_min: float = 0.3,
+    consecutive_penalty: int = 4,
+    min_score: float = 3.0,
+) -> SignalResult:
     """
     Compute next-candle color prediction signals from BTC/USDT 15m data.
     All indicators are tuned for short-term (1-candle ahead) prediction.
@@ -196,58 +210,45 @@ def compute_signals(symbol: str = "BTCUSDT", exchange: str = "Binance", bars: in
     filters_passed = 0
 
     # ── Signal 1: Close Position ──────────────────────────────────
-    # Closed near high = likely to continue up; near low = down
-    if close_position >= 0.65:
+    if close_position >= close_pos_bull:
         score_up += 1
         filters_passed += 1
-    elif close_position <= 0.35:
+    elif close_position <= close_pos_bear:
         score_dn += 1
         filters_passed += 1
-    # Neutral close position (0.35–0.65): no contribution
 
     # ── Signal 2: Wick Rejection ──────────────────────────────────
-    # Long upper wick on green candle = selling pressure → bearish
-    # Long lower wick on red candle   = buying pressure  → bullish
-    if candle_is_green and lower_wick_ratio >= 0.3 and upper_wick_ratio < 0.2:
-        # Clean green candle, strong lower support → continue up
+    wick_reversal = wick_ratio_min + 0.1  # e.g. 0.4 when wick_ratio_min=0.3
+    if candle_is_green and lower_wick_ratio >= wick_ratio_min and upper_wick_ratio < (wick_ratio_min - 0.1):
         score_up += 1
         filters_passed += 1
-    elif not candle_is_green and upper_wick_ratio >= 0.3 and lower_wick_ratio < 0.2:
-        # Clean red candle, strong upper rejection → continue down
+    elif not candle_is_green and upper_wick_ratio >= wick_ratio_min and lower_wick_ratio < (wick_ratio_min - 0.1):
         score_dn += 1
         filters_passed += 1
-    elif candle_is_green and upper_wick_ratio >= 0.4:
-        # Green candle but hit resistance → reversal pressure
+    elif candle_is_green and upper_wick_ratio >= wick_reversal:
         score_dn += 1
-    elif not candle_is_green and lower_wick_ratio >= 0.4:
-        # Red candle but hit support → reversal pressure
+    elif not candle_is_green and lower_wick_ratio >= wick_reversal:
         score_up += 1
 
     # ── Signal 3: Body Strength ───────────────────────────────────
-    # Strong body (>55% of range) = conviction, likely to continue
-    # Weak body (doji, <20%) = indecision, skip
-    if body_ratio >= 0.55:
+    if body_ratio >= body_ratio_min:
         if candle_is_green:
             score_up += 1
             filters_passed += 1
         else:
             score_dn += 1
             filters_passed += 1
-    # Weak body: no contribution either way
 
     # ── Signal 4: RSI(5) Short Momentum ──────────────────────────
-    # RSI(5) > 55 = short-term bullish momentum
-    # RSI(5) < 45 = short-term bearish momentum
-    if rsi5 > 55:
+    if rsi5 > rsi5_bull:
         score_up += 1
         filters_passed += 1
-    elif rsi5 < 45:
+    elif rsi5 < rsi5_bear:
         score_dn += 1
         filters_passed += 1
 
     # ── Signal 5: Volume Confirmation ────────────────────────────
-    # High volume (>1.3x avg) in candle's direction adds conviction
-    if volume_ratio >= 1.3:
+    if volume_ratio >= volume_ratio_min:
         if candle_is_green:
             score_up += 1
             filters_passed += 1
@@ -256,9 +257,7 @@ def compute_signals(symbol: str = "BTCUSDT", exchange: str = "Binance", bars: in
             filters_passed += 1
 
     # ── Mean Reversion Penalty ───────────────────────────────────
-    # After 3+ consecutive same-color candles, reduce score in that direction
-    # Markets tend to mean-revert after extended runs
-    if consecutive >= 4:
+    if consecutive >= consecutive_penalty:
         if candle_is_green:
             score_up = max(0, score_up - 1)
             logger.debug(f"Mean reversion penalty: {consecutive} consecutive green candles")
@@ -267,16 +266,14 @@ def compute_signals(symbol: str = "BTCUSDT", exchange: str = "Binance", bars: in
             logger.debug(f"Mean reversion penalty: {consecutive} consecutive red candles")
 
     # ── Doji Veto ─────────────────────────────────────────────────
-    # Very small body = no conviction, skip the trade
-    doji = body_ratio < 0.15
+    doji = body_ratio < doji_threshold
     if doji:
         direction = "SKIP"
         confidence = "SKIP"
     else:
-        # Direction requires score >= 3 to trade
-        if score_up >= 3 and score_up > score_dn:
+        if score_up >= min_score and score_up > score_dn:
             direction = "UP"
-        elif score_dn >= 3 and score_dn > score_up:
+        elif score_dn >= min_score and score_dn > score_up:
             direction = "DOWN"
         else:
             direction = "SKIP"
@@ -284,16 +281,16 @@ def compute_signals(symbol: str = "BTCUSDT", exchange: str = "Binance", bars: in
         max_score = max(score_up, score_dn)
         if max_score >= 5:
             confidence = "HIGH"
-        elif max_score >= 3:
+        elif max_score >= min_score:
             confidence = "MEDIUM"
         else:
             confidence = "SKIP"
 
     # ── Filter labels for UI ──────────────────────────────────────
-    rsi_filter      = "BULL" if rsi5 > 55 else ("BEAR" if rsi5 < 45 else "NEUTRAL")
+    rsi_filter      = "BULL" if rsi5 > rsi5_bull else ("BEAR" if rsi5 < rsi5_bear else "NEUTRAL")
     macd_filter     = "BULL" if macd > macd_signal_line else "BEAR"
-    volume_filter   = "HIGH" if volume_ratio > 1.3 else "NORMAL"
-    close_pos_filter = "BULL" if close_position > 0.65 else ("BEAR" if close_position < 0.35 else "NEUTRAL")
+    volume_filter   = "HIGH" if volume_ratio >= volume_ratio_min else "NORMAL"
+    close_pos_filter = "BULL" if close_position >= close_pos_bull else ("BEAR" if close_position <= close_pos_bear else "NEUTRAL")
 
     logger.info(
         f"Next-candle signal: {direction} ({confidence}) | "

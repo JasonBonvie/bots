@@ -1664,160 +1664,87 @@
 
                             <!-- Entry Rules -->
                             <div>
-                                <div
-                                    style="
-                                        font-family: var(--font-mono);
-                                        font-size: 11px;
-                                        font-weight: 600;
-                                        color: var(--accent-blue);
-                                        margin-bottom: 12px;
-                                    "
-                                >
+                                <div style="font-family: var(--font-mono); font-size: 11px; font-weight: 600; color: var(--accent-blue); margin-bottom: 12px;">
                                     ENTRY RULES
                                 </div>
-                                <div
-                                    style="
-                                        display: flex;
-                                        flex-direction: column;
-                                        gap: 10px;
-                                    "
-                                >
-                                    <label
-                                        style="
-                                            display: flex;
-                                            align-items: center;
-                                            gap: 8px;
-                                            font-family: var(--font-mono);
-                                            font-size: 12px;
-                                            color: var(--text-primary);
-                                            cursor: pointer;
-                                        "
-                                        data-tooltip="Minimum signal score required to open a position. Score is 0-4 based on how many filters pass. Higher = more selective, fewer trades."
-                                    >
-                                        <input
-                                            type="number"
-                                            id="cfg_min_score"
-                                            value="3.0"
-                                            min="1"
-                                            max="4"
-                                            step="0.5"
-                                            style="
-                                                width: 50px;
-                                                padding: 4px 8px;
-                                                font-family: var(--font-mono);
-                                                font-size: 12px;
-                                                background: var(--bg-stat);
-                                                border: 1px solid
-                                                    var(--border-color);
-                                                border-radius: 4px;
-                                                color: var(--text-primary);
-                                            "
-                                        />
-                                        Min Score (1-4)
+                                <div style="display: flex; flex-direction: column; gap: 10px;">
+
+                                    <!-- Min Score -->
+                                    <label style="display: flex; align-items: center; gap: 8px; font-family: var(--font-mono); font-size: 12px; color: var(--text-primary); cursor: pointer;"
+                                        data-tooltip="Minimum signal score (0-5) to open a trade. Each of the 5 signals contributes 1 point. Higher = fewer but higher quality trades.">
+                                        <input type="number" id="cfg_min_score" value="3" min="1" max="5" step="0.5"
+                                            style="width: 50px; padding: 4px 8px; font-family: var(--font-mono); font-size: 12px; background: var(--bg-stat); border: 1px solid var(--border-color); border-radius: 4px; color: var(--text-primary);" />
+                                        Min Score (1-5)
                                     </label>
-                                    <label
-                                        style="
-                                            display: flex;
-                                            align-items: center;
-                                            gap: 8px;
-                                            font-family: var(--font-mono);
-                                            font-size: 12px;
-                                            color: var(--text-primary);
-                                            cursor: pointer;
-                                        "
-                                        data-tooltip="EMA8 must be above EMA21 for UP signals, below for DOWN signals. Confirms short-term trend direction."
-                                    >
-                                        <input
-                                            type="checkbox"
-                                            id="cfg_require_ema"
-                                            checked
-                                            style="
-                                                width: 16px;
-                                                height: 16px;
-                                                accent-color: var(
-                                                    --accent-green
-                                                );
-                                            "
-                                        />
-                                        Require EMA Alignment
+
+                                    <!-- RSI(5) thresholds -->
+                                    <label style="display: flex; align-items: center; gap: 8px; font-family: var(--font-mono); font-size: 12px; color: var(--text-primary);"
+                                        data-tooltip="RSI(5) above this = bullish momentum signal. Default 55. Lower = more trades, higher = stronger signal required.">
+                                        <input type="number" id="cfg_rsi5_bull" value="55" min="50" max="80" step="1"
+                                            style="width: 50px; padding: 4px 8px; font-family: var(--font-mono); font-size: 12px; background: var(--bg-stat); border: 1px solid var(--border-color); border-radius: 4px; color: var(--text-primary);" />
+                                        RSI(5) Bull Threshold
                                     </label>
-                                    <label
-                                        style="
-                                            display: flex;
-                                            align-items: center;
-                                            gap: 8px;
-                                            font-family: var(--font-mono);
-                                            font-size: 12px;
-                                            color: var(--text-primary);
-                                            cursor: pointer;
-                                        "
-                                        data-tooltip="RSI must be 50-70 for UP signals (bullish momentum) or 30-50 for DOWN signals (bearish momentum). Filters overbought/oversold conditions."
-                                    >
-                                        <input
-                                            type="checkbox"
-                                            id="cfg_require_rsi"
-                                            checked
-                                            style="
-                                                width: 16px;
-                                                height: 16px;
-                                                accent-color: var(
-                                                    --accent-green
-                                                );
-                                            "
-                                        />
-                                        Require RSI Zone
+                                    <label style="display: flex; align-items: center; gap: 8px; font-family: var(--font-mono); font-size: 12px; color: var(--text-primary);"
+                                        data-tooltip="RSI(5) below this = bearish momentum signal. Default 45. Higher = more trades, lower = stronger signal required.">
+                                        <input type="number" id="cfg_rsi5_bear" value="45" min="20" max="50" step="1"
+                                            style="width: 50px; padding: 4px 8px; font-family: var(--font-mono); font-size: 12px; background: var(--bg-stat); border: 1px solid var(--border-color); border-radius: 4px; color: var(--text-primary);" />
+                                        RSI(5) Bear Threshold
                                     </label>
-                                    <label
-                                        style="
-                                            display: flex;
-                                            align-items: center;
-                                            gap: 8px;
-                                            font-family: var(--font-mono);
-                                            font-size: 12px;
-                                            color: var(--text-primary);
-                                            cursor: pointer;
-                                        "
-                                        data-tooltip="MACD line must be above signal line for UP signals, below for DOWN signals. Confirms momentum direction."
-                                    >
-                                        <input
-                                            type="checkbox"
-                                            id="cfg_require_macd"
-                                            checked
-                                            style="
-                                                width: 16px;
-                                                height: 16px;
-                                                accent-color: var(
-                                                    --accent-green
-                                                );
-                                            "
-                                        />
-                                        Require MACD Confirmation
+
+                                    <!-- Close Position thresholds -->
+                                    <label style="display: flex; align-items: center; gap: 8px; font-family: var(--font-mono); font-size: 12px; color: var(--text-primary);"
+                                        data-tooltip="If candle closes above this % of its range, counts as bullish. Default 0.65 (top 35% of range).">
+                                        <input type="number" id="cfg_close_pos_bull" value="0.65" min="0.5" max="0.9" step="0.05"
+                                            style="width: 55px; padding: 4px 8px; font-family: var(--font-mono); font-size: 12px; background: var(--bg-stat); border: 1px solid var(--border-color); border-radius: 4px; color: var(--text-primary);" />
+                                        Close Pos Bull (0-1)
                                     </label>
-                                    <label
-                                        style="
-                                            display: flex;
-                                            align-items: center;
-                                            gap: 8px;
-                                            font-family: var(--font-mono);
-                                            font-size: 12px;
-                                            color: var(--text-primary);
-                                            cursor: pointer;
-                                        "
-                                        data-tooltip="Candle must close in upper 35% of range for UP signals, lower 35% for DOWN signals. Confirms price closed strong in the direction."
-                                    >
-                                        <input
-                                            type="checkbox"
-                                            id="cfg_require_close"
-                                            style="
-                                                width: 16px;
-                                                height: 16px;
-                                                accent-color: var(
-                                                    --accent-green
-                                                );
-                                            "
-                                        />
-                                        Require Close Position
+                                    <label style="display: flex; align-items: center; gap: 8px; font-family: var(--font-mono); font-size: 12px; color: var(--text-primary);"
+                                        data-tooltip="If candle closes below this % of its range, counts as bearish. Default 0.35 (bottom 35% of range).">
+                                        <input type="number" id="cfg_close_pos_bear" value="0.35" min="0.1" max="0.5" step="0.05"
+                                            style="width: 55px; padding: 4px 8px; font-family: var(--font-mono); font-size: 12px; background: var(--bg-stat); border: 1px solid var(--border-color); border-radius: 4px; color: var(--text-primary);" />
+                                        Close Pos Bear (0-1)
                                     </label>
+
+                                    <!-- Body Ratio -->
+                                    <label style="display: flex; align-items: center; gap: 8px; font-family: var(--font-mono); font-size: 12px; color: var(--text-primary);"
+                                        data-tooltip="Candle body must be at least this fraction of total range to count as a strong candle. Default 0.55. Higher = only count full-body candles.">
+                                        <input type="number" id="cfg_body_ratio" value="0.55" min="0.2" max="0.9" step="0.05"
+                                            style="width: 55px; padding: 4px 8px; font-family: var(--font-mono); font-size: 12px; background: var(--bg-stat); border: 1px solid var(--border-color); border-radius: 4px; color: var(--text-primary);" />
+                                        Body Strength Min (0-1)
+                                    </label>
+
+                                    <!-- Doji Threshold -->
+                                    <label style="display: flex; align-items: center; gap: 8px; font-family: var(--font-mono); font-size: 12px; color: var(--text-primary);"
+                                        data-tooltip="Skip trade if body ratio is below this — candle has no conviction. Default 0.15.">
+                                        <input type="number" id="cfg_doji_threshold" value="0.15" min="0.05" max="0.4" step="0.05"
+                                            style="width: 55px; padding: 4px 8px; font-family: var(--font-mono); font-size: 12px; background: var(--bg-stat); border: 1px solid var(--border-color); border-radius: 4px; color: var(--text-primary);" />
+                                        Doji Skip Threshold
+                                    </label>
+
+                                    <!-- Volume Ratio -->
+                                    <label style="display: flex; align-items: center; gap: 8px; font-family: var(--font-mono); font-size: 12px; color: var(--text-primary);"
+                                        data-tooltip="Volume must be at least this multiple of the 20-bar average to count as high-volume confirmation. Default 1.3x.">
+                                        <input type="number" id="cfg_volume_ratio" value="1.3" min="1.0" max="3.0" step="0.1"
+                                            style="width: 55px; padding: 4px 8px; font-family: var(--font-mono); font-size: 12px; background: var(--bg-stat); border: 1px solid var(--border-color); border-radius: 4px; color: var(--text-primary);" />
+                                        Volume Confirm (x avg)
+                                    </label>
+
+                                    <!-- Wick Ratio -->
+                                    <label style="display: flex; align-items: center; gap: 8px; font-family: var(--font-mono); font-size: 12px; color: var(--text-primary);"
+                                        data-tooltip="Minimum wick size (as fraction of range) to count as a wick rejection signal. Default 0.3.">
+                                        <input type="number" id="cfg_wick_ratio" value="0.3" min="0.1" max="0.6" step="0.05"
+                                            style="width: 55px; padding: 4px 8px; font-family: var(--font-mono); font-size: 12px; background: var(--bg-stat); border: 1px solid var(--border-color); border-radius: 4px; color: var(--text-primary);" />
+                                        Wick Rejection Min
+                                    </label>
+
+                                    <!-- Consecutive Penalty -->
+                                    <label style="display: flex; align-items: center; gap: 8px; font-family: var(--font-mono); font-size: 12px; color: var(--text-primary);"
+                                        data-tooltip="After this many consecutive same-color candles, apply mean reversion penalty (-1 score). Default 4. Higher = less mean reversion filtering.">
+                                        <input type="number" id="cfg_consecutive_penalty" value="4" min="2" max="10" step="1"
+                                            style="width: 50px; padding: 4px 8px; font-family: var(--font-mono); font-size: 12px; background: var(--bg-stat); border: 1px solid var(--border-color); border-radius: 4px; color: var(--text-primary);" />
+                                        Mean Reversion Candles
+                                    </label>
+
                                 </div>
                             </div>
 
@@ -3759,21 +3686,33 @@
                                 <div>
                                     <div style="color: var(--accent-blue); font-weight: 600; margin-bottom: 8px;">ENTRY RULES</div>
                                     <div style="display: flex; flex-direction: column; gap: 6px;">
-                                        <label style="display: flex; align-items: center; gap: 6px; color: var(--text-primary); cursor: help;" data-tooltip="Minimum signal score required to open a position (0-4). Higher = more selective.">
-                                            <input type="number" id="bot-${bot.id}-min_score" value="${bot.config?.min_score || 3}" min="1" max="4" step="0.5" style="width: 45px; padding: 3px 6px; font-size: 11px; background: var(--bg-stat); border: 1px solid var(--border-color); border-radius: 3px; color: var(--text-primary);" />
-                                            Min Score
+                                        <label style="display: flex; align-items: center; gap: 6px; color: var(--text-primary); cursor: help;" data-tooltip="Minimum signal score (0-5) to open a trade.">
+                                            <input type="number" id="bot-${bot.id}-min_score" value="${bot.config?.min_score || 3}" min="1" max="5" step="0.5" style="width: 45px; padding: 3px 6px; font-size: 11px; background: var(--bg-stat); border: 1px solid var(--border-color); border-radius: 3px; color: var(--text-primary);" />
+                                            Min Score (1-5)
                                         </label>
-                                        <label style="display: flex; align-items: center; gap: 6px; color: var(--text-primary); cursor: pointer;" data-tooltip="EMA8 must be above EMA21 for UP signals, below for DOWN.">
-                                            <input type="checkbox" id="bot-${bot.id}-require_ema" ${bot.config?.require_ema_alignment !== false ? "checked" : ""} style="accent-color: var(--accent-green);" />
-                                            EMA Alignment
+                                        <label style="display: flex; align-items: center; gap: 6px; color: var(--text-primary); cursor: help;" data-tooltip="RSI(5) above this = bullish momentum.">
+                                            <input type="number" id="bot-${bot.id}-rsi5_bull" value="${bot.config?.rsi5_bull_threshold || 55}" min="50" max="80" step="1" style="width: 45px; padding: 3px 6px; font-size: 11px; background: var(--bg-stat); border: 1px solid var(--border-color); border-radius: 3px; color: var(--text-primary);" />
+                                            RSI Bull &gt;
                                         </label>
-                                        <label style="display: flex; align-items: center; gap: 6px; color: var(--text-primary); cursor: pointer;" data-tooltip="RSI must be 50-70 for UP signals, 30-50 for DOWN signals.">
-                                            <input type="checkbox" id="bot-${bot.id}-require_rsi" ${bot.config?.require_rsi_zone !== false ? "checked" : ""} style="accent-color: var(--accent-green);" />
-                                            RSI Zone
+                                        <label style="display: flex; align-items: center; gap: 6px; color: var(--text-primary); cursor: help;" data-tooltip="RSI(5) below this = bearish momentum.">
+                                            <input type="number" id="bot-${bot.id}-rsi5_bear" value="${bot.config?.rsi5_bear_threshold || 45}" min="20" max="50" step="1" style="width: 45px; padding: 3px 6px; font-size: 11px; background: var(--bg-stat); border: 1px solid var(--border-color); border-radius: 3px; color: var(--text-primary);" />
+                                            RSI Bear &lt;
                                         </label>
-                                        <label style="display: flex; align-items: center; gap: 6px; color: var(--text-primary); cursor: pointer;" data-tooltip="MACD line must be above signal line for UP, below for DOWN.">
-                                            <input type="checkbox" id="bot-${bot.id}-require_macd" ${bot.config?.require_macd_confirmation !== false ? "checked" : ""} style="accent-color: var(--accent-green);" />
-                                            MACD Confirm
+                                        <label style="display: flex; align-items: center; gap: 6px; color: var(--text-primary); cursor: help;" data-tooltip="Body must be this fraction of range to count as strong candle.">
+                                            <input type="number" id="bot-${bot.id}-body_ratio" value="${bot.config?.body_ratio_min || 0.55}" min="0.2" max="0.9" step="0.05" style="width: 50px; padding: 3px 6px; font-size: 11px; background: var(--bg-stat); border: 1px solid var(--border-color); border-radius: 3px; color: var(--text-primary);" />
+                                            Body Min
+                                        </label>
+                                        <label style="display: flex; align-items: center; gap: 6px; color: var(--text-primary); cursor: help;" data-tooltip="Skip if body ratio is below this (doji).">
+                                            <input type="number" id="bot-${bot.id}-doji_threshold" value="${bot.config?.doji_threshold || 0.15}" min="0.05" max="0.4" step="0.05" style="width: 50px; padding: 3px 6px; font-size: 11px; background: var(--bg-stat); border: 1px solid var(--border-color); border-radius: 3px; color: var(--text-primary);" />
+                                            Doji Skip
+                                        </label>
+                                        <label style="display: flex; align-items: center; gap: 6px; color: var(--text-primary); cursor: help;" data-tooltip="Volume must be this multiple of average to confirm signal.">
+                                            <input type="number" id="bot-${bot.id}-volume_ratio" value="${bot.config?.volume_ratio_min || 1.3}" min="1.0" max="3.0" step="0.1" style="width: 50px; padding: 3px 6px; font-size: 11px; background: var(--bg-stat); border: 1px solid var(--border-color); border-radius: 3px; color: var(--text-primary);" />
+                                            Volume Confirm
+                                        </label>
+                                        <label style="display: flex; align-items: center; gap: 6px; color: var(--text-primary); cursor: help;" data-tooltip="Consecutive same-color candles before mean reversion penalty.">
+                                            <input type="number" id="bot-${bot.id}-consecutive_penalty" value="${bot.config?.consecutive_penalty || 4}" min="2" max="10" step="1" style="width: 45px; padding: 3px 6px; font-size: 11px; background: var(--bg-stat); border: 1px solid var(--border-color); border-radius: 3px; color: var(--text-primary);" />
+                                            Mean Reversion
                                         </label>
                                     </div>
                                 </div>
@@ -3868,14 +3807,33 @@
                     min_score: parseFloat(
                         document.getElementById("cfg_min_score").value,
                     ),
-                    require_ema_alignment:
-                        document.getElementById("cfg_require_ema").checked,
-                    require_rsi_zone:
-                        document.getElementById("cfg_require_rsi").checked,
-                    require_macd_confirmation:
-                        document.getElementById("cfg_require_macd").checked,
-                    require_close_position:
-                        document.getElementById("cfg_require_close").checked,
+                    rsi5_bull_threshold: parseFloat(
+                        document.getElementById("cfg_rsi5_bull").value,
+                    ),
+                    rsi5_bear_threshold: parseFloat(
+                        document.getElementById("cfg_rsi5_bear").value,
+                    ),
+                    close_pos_bull: parseFloat(
+                        document.getElementById("cfg_close_pos_bull").value,
+                    ),
+                    close_pos_bear: parseFloat(
+                        document.getElementById("cfg_close_pos_bear").value,
+                    ),
+                    body_ratio_min: parseFloat(
+                        document.getElementById("cfg_body_ratio").value,
+                    ),
+                    doji_threshold: parseFloat(
+                        document.getElementById("cfg_doji_threshold").value,
+                    ),
+                    volume_ratio_min: parseFloat(
+                        document.getElementById("cfg_volume_ratio").value,
+                    ),
+                    wick_ratio_min: parseFloat(
+                        document.getElementById("cfg_wick_ratio").value,
+                    ),
+                    consecutive_penalty: parseInt(
+                        document.getElementById("cfg_consecutive_penalty").value,
+                    ),
                     base_stake_cents: parseInt(
                         document.getElementById("cfg_base_stake").value,
                     ),
@@ -3915,21 +3873,14 @@
 
             async function saveBotConfig(botId) {
                 const config = {
-                    strategy_mode: document.getElementById(
-                        `bot-${botId}-strategy_mode`,
-                    ).value,
-                    min_score: parseFloat(
-                        document.getElementById(`bot-${botId}-min_score`).value,
-                    ),
-                    require_ema_alignment: document.getElementById(
-                        `bot-${botId}-require_ema`,
-                    ).checked,
-                    require_rsi_zone: document.getElementById(
-                        `bot-${botId}-require_rsi`,
-                    ).checked,
-                    require_macd_confirmation: document.getElementById(
-                        `bot-${botId}-require_macd`,
-                    ).checked,
+                    strategy_mode: document.getElementById(`bot-${botId}-strategy_mode`).value,
+                    min_score: parseFloat(document.getElementById(`bot-${botId}-min_score`).value),
+                    rsi5_bull_threshold: parseFloat(document.getElementById(`bot-${botId}-rsi5_bull`).value),
+                    rsi5_bear_threshold: parseFloat(document.getElementById(`bot-${botId}-rsi5_bear`).value),
+                    body_ratio_min: parseFloat(document.getElementById(`bot-${botId}-body_ratio`).value),
+                    doji_threshold: parseFloat(document.getElementById(`bot-${botId}-doji_threshold`).value),
+                    volume_ratio_min: parseFloat(document.getElementById(`bot-${botId}-volume_ratio`).value),
+                    consecutive_penalty: parseInt(document.getElementById(`bot-${botId}-consecutive_penalty`).value),
                     base_stake_cents: parseInt(
                         document.getElementById(`bot-${botId}-base_stake`)
                             .value,

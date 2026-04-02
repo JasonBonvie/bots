@@ -125,12 +125,31 @@ class SignalScheduler:
 
             # Add timeout to prevent slow TradingView from delaying trades
             # Signal must compute within 30 seconds or we skip this candle
+            # Pull signal thresholds from the first running bot's config if available
+            signal_kwargs = {}
+            running_bots = [b for b in bot_manager.bots.values() if b.status.value == "running"]
+            if running_bots:
+                cfg = running_bots[0].config
+                signal_kwargs = {
+                    "rsi5_bull": cfg.rsi5_bull_threshold,
+                    "rsi5_bear": cfg.rsi5_bear_threshold,
+                    "close_pos_bull": cfg.close_pos_bull,
+                    "close_pos_bear": cfg.close_pos_bear,
+                    "body_ratio_min": cfg.body_ratio_min,
+                    "doji_threshold": cfg.doji_threshold,
+                    "volume_ratio_min": cfg.volume_ratio_min,
+                    "wick_ratio_min": cfg.wick_ratio_min,
+                    "consecutive_penalty": cfg.consecutive_penalty,
+                    "min_score": cfg.min_score,
+                }
+
+            import functools
             try:
                 signal = await asyncio.wait_for(
                     asyncio.get_event_loop().run_in_executor(
-                        None, compute_signals
+                        None, functools.partial(compute_signals, **signal_kwargs)
                     ),
-                    timeout=30.0  # 30 second max for signal computation
+                    timeout=30.0
                 )
             except asyncio.TimeoutError:
                 logger.error("Signal computation timed out after 30s - TradingView may be slow")

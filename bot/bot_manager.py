@@ -136,11 +136,21 @@ class BotConfig(BaseModel):
     strategy_mode: str = "signals"
 
     # Entry rules (only used when strategy_mode="signals")
-    min_score: float = 3.0  # Minimum score to enter
-    require_ema_alignment: bool = True
+    min_score: float = 3.0          # Minimum score (0-5) to enter
+    rsi5_bull_threshold: float = 55.0   # RSI(5) above this = bullish momentum
+    rsi5_bear_threshold: float = 45.0   # RSI(5) below this = bearish momentum
+    close_pos_bull: float = 0.65        # Close position above this = bullish
+    close_pos_bear: float = 0.35        # Close position below this = bearish
+    body_ratio_min: float = 0.55        # Minimum body ratio for strong candle signal
+    doji_threshold: float = 0.15        # Body ratio below this = doji, skip trade
+    volume_ratio_min: float = 1.3       # Volume ratio above this = high volume confirm
+    wick_ratio_min: float = 0.3         # Minimum wick ratio to count as rejection
+    consecutive_penalty: int = 4        # Consecutive same-color candles before mean reversion penalty
+    # Legacy filter toggles (kept for follow_candle mode compatibility)
+    require_ema_alignment: bool = False
     require_rsi_zone: bool = True
-    require_macd_confirmation: bool = True
-    require_close_position: bool = False
+    require_macd_confirmation: bool = False
+    require_close_position: bool = True
 
     # Position sizing
     base_stake_cents: int = 100  # $1.00 default
