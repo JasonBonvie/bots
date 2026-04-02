@@ -199,6 +199,11 @@ class BacktestEngine:
         sc_up = pd.Series(0.0, index=df.index)
         sc_dn = pd.Series(0.0, index=df.index)
 
+        # After shift(1) boolean columns become float64 (NaN forces it).
+        # Cast to bool explicitly so ~ (bitwise NOT) works correctly.
+        s_green = df["s_candle_is_green"].fillna(False).astype(bool)
+        s_red = ~s_green
+
         # Signal 1: Close Position
         sc_up += (df["s_close_position"] >= p.close_pos_bull).astype(float)
         sc_dn += (df["s_close_position"] <= p.close_pos_bear).astype(float)
@@ -207,16 +212,16 @@ class BacktestEngine:
         wr_min = p.wick_ratio_min
         wr_rev = wr_min + 0.1
         anti = max(0.0, wr_min - 0.1)
-        green_clean = df["s_candle_is_green"] & (df["s_lower_wick_ratio"] >= wr_min) & (df["s_upper_wick_ratio"] < anti)
-        red_clean   = ~df["s_candle_is_green"] & (df["s_upper_wick_ratio"] >= wr_min) & (df["s_lower_wick_ratio"] < anti)
-        green_rev   = df["s_candle_is_green"] & (df["s_upper_wick_ratio"] >= wr_rev)
-        red_rev     = ~df["s_candle_is_green"] & (df["s_lower_wick_ratio"] >= wr_rev)
+        green_clean = s_green & (df["s_lower_wick_ratio"] >= wr_min) & (df["s_upper_wick_ratio"] < anti)
+        red_clean   = s_red   & (df["s_upper_wick_ratio"] >= wr_min) & (df["s_lower_wick_ratio"] < anti)
+        green_rev   = s_green & (df["s_upper_wick_ratio"] >= wr_rev)
+        red_rev     = s_red   & (df["s_lower_wick_ratio"] >= wr_rev)
         sc_up += green_clean.astype(float) + red_rev.astype(float)
         sc_dn += red_clean.astype(float) + green_rev.astype(float)
 
         # Signal 3: Body Strength
-        strong_green = df["s_candle_is_green"] & (df["s_body_ratio"] >= p.body_ratio_min)
-        strong_red   = ~df["s_candle_is_green"] & (df["s_body_ratio"] >= p.body_ratio_min)
+        strong_green = s_green & (df["s_body_ratio"] >= p.body_ratio_min)
+        strong_red   = s_red   & (df["s_body_ratio"] >= p.body_ratio_min)
         sc_up += strong_green.astype(float)
         sc_dn += strong_red.astype(float)
 
@@ -225,14 +230,14 @@ class BacktestEngine:
         sc_dn += (df["s_rsi5"] < p.rsi5_bear).astype(float)
 
         # Signal 5: Volume Confirmation
-        high_vol_green = (df["s_volume_ratio"] >= p.volume_ratio_min) & df["s_candle_is_green"]
-        high_vol_red   = (df["s_volume_ratio"] >= p.volume_ratio_min) & ~df["s_candle_is_green"]
+        high_vol_green = (df["s_volume_ratio"] >= p.volume_ratio_min) & s_green
+        high_vol_red   = (df["s_volume_ratio"] >= p.volume_ratio_min) & s_red
         sc_up += high_vol_green.astype(float)
         sc_dn += high_vol_red.astype(float)
 
         # Mean Reversion Penalty: 4+ consecutive same-color candles
-        penalty_green = (df["s_consecutive"] >= p.consecutive_penalty) & df["s_candle_is_green"]
-        penalty_red   = (df["s_consecutive"] >= p.consecutive_penalty) & ~df["s_candle_is_green"]
+        penalty_green = (df["s_consecutive"] >= p.consecutive_penalty) & s_green
+        penalty_red   = (df["s_consecutive"] >= p.consecutive_penalty) & s_red
         sc_up = (sc_up - penalty_green.astype(float)).clip(lower=0)
         sc_dn = (sc_dn - penalty_red.astype(float)).clip(lower=0)
 
