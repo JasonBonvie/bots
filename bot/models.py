@@ -88,20 +88,31 @@ class HealthCheck(BaseModel):
 
 class BacktestParams(BaseModel):
     """Parameters for a backtest run."""
-    start_ts: int                    # Unix timestamp (seconds)
-    end_ts: int                      # Unix timestamp (seconds)
-    min_score: float = 3.0           # 1.0–4.0; threshold to take a trade
-    entry_price_cents: int = 50      # assumed entry price in btc_only mode (1-99)
-    stake_cents: int = 100           # flat risk per trade in cents
-    mode: str = "btc_only"           # "btc_only" | "kalshi"
-    require_ema: bool = True
+    start_ts: int                        # Unix timestamp (seconds)
+    end_ts: int                          # Unix timestamp (seconds)
+    min_score: float = 3.0               # 1–5; threshold to take a trade
+    entry_price_cents: int = 50          # assumed entry price in btc_only mode (1-99)
+    stake_cents: int = 100               # flat risk per trade in cents
+    mode: str = "btc_only"              # "btc_only" | "kalshi"
+    slippage_cents: int = 2              # slippage added to entry price (0-10)
+    use_limit_order: bool = False        # simulate limit orders instead of market orders
+    limit_price_cents: int = 45          # limit order price in cents (1-99)
+    limit_window_minutes: int = 3        # minutes after candle open to wait for fill
+    # Signal thresholds — match live bot config
+    rsi5_bull: float = 55.0             # RSI(5) above = bullish
+    rsi5_bear: float = 45.0             # RSI(5) below = bearish
+    close_pos_bull: float = 0.65        # close position above = bullish
+    close_pos_bear: float = 0.35        # close position below = bearish
+    body_ratio_min: float = 0.55        # min body ratio for strong candle
+    doji_threshold: float = 0.15        # body ratio below = doji, skip
+    volume_ratio_min: float = 1.3       # min volume ratio for confirm
+    wick_ratio_min: float = 0.3         # min wick ratio for rejection signal
+    consecutive_penalty: int = 4        # consecutive candles before mean reversion penalty
+    require_prev_candle_match: bool = False  # only trade when signal matches prev candle
+    # Legacy (kept for API compatibility, not used in scoring)
+    require_ema: bool = False
     require_rsi: bool = True
-    require_macd: bool = True
-    require_prev_candle_match: bool = False  # only trade when signal matches previous candle color
-    slippage_cents: int = 2          # slippage added to entry price (worsens fill, 0-10)
-    use_limit_order: bool = False    # simulate limit orders instead of market orders
-    limit_price_cents: int = 45      # limit order price in cents (1-99)
-    limit_window_minutes: int = 3    # how many minutes after candle open to wait for fill
+    require_macd: bool = False
 
 
 class TradeRecord(BaseModel):

@@ -53,8 +53,9 @@ class BacktestEngine:
         """
         p = self.params
         all_records: List[dict] = []
-        # Fetch extra candles before start for MACD/EMA warmup (~40 x 15min = 600min)
-        warmup_seconds = 40 * 15 * 60
+        # Fetch extra candles before start for indicator warmup (~25 x 15min = 375min)
+        # RSI(5) needs ~5 bars, volume SMA needs 20 bars, consecutive count needs ~10
+        warmup_seconds = 25 * 15 * 60
         start_ms = (p.start_ts - warmup_seconds) * 1000
         end_ms = p.end_ts * 1000
 
@@ -129,61 +130,63 @@ class BacktestEngine:
 
     def compute_indicators_vectorized(self, df: pd.DataFrame) -> pd.DataFrame:
         """
-        Compute all 4 momentum indicators in one pass over the full DataFrame.
-        Appends indicator columns and direction/score columns.
-        Rows with NaN indicators (MACD warmup period ~33 bars) are left as-is
-        and should be dropped by the caller before iterating trades.
+        Compute next-candle color prediction signals — matches live signals.py exactly.
+        Uses the last CLOSED candle (shift by 1) so we're predicting the NEXT candle.
+
+        Signals (5 total, 0-5 score each direction):
+          1. Close Position  — where price closed in the candle range
+          2. Wick Rejection  — wick structure signals continuation or reversal
+          3. Body Strength   — strong body = conviction, doji = skip
+          4. RSI(5)          — short-period momentum
+          5. Volume Confirm  — high volume in candle direction
+
+        Mean reversion penalty: 4+ consecutive same-color candles reduce score by 1.
+        Doji veto: body ratio < threshold → direction = SKIP.
         """
         p = self.params
         df = df.copy()
 
+        # ── RSI(5) — short momentum ──────────────────────────────────
+        df["rsi5"] = ta.rsi(df["close"], length=5)
+
+        # Keep RSI(14) and EMA/MACD for display in filter stats
         df["rsi"] = ta.rsi(df["close"], length=14)
         df["ema8"] = ta.ema(df["close"], length=8)
         df["ema21"] = ta.ema(df["close"], length=21)
-
         macd_df = ta.macd(df["close"], fast=12, slow=26, signal=9)
         df["macd"] = macd_df["MACD_12_26_9"]
         df["macd_sig"] = macd_df["MACDs_12_26_9"]
 
+        # ── Volume ratio ─────────────────────────────────────────────
         vol_sma = df["volume"].rolling(window=20).mean()
         df["volume_ratio"] = (df["volume"] / vol_sma).fillna(1.0)
 
+        # ── Candle metrics — use CLOSED candle (shift 1 for prediction) ──
         hi_lo = df["high"] - df["low"]
-        df["close_position"] = (
-            (df["close"] - df["low"]) / hi_lo.replace(0, np.nan)
-        ).fillna(0.5)
+        df["close_position"] = ((df["close"] - df["low"]) / hi_lo.replace(0, np.nan)).fillna(0.5)
+        df["body"] = (df["close"] - df["open"]).abs()
+        df["body_ratio"] = (df["body"] / hi_lo.replace(0, np.nan)).fillna(0.0)
+        df["candle_is_green"] = df["close"] > df["open"]
+        df["upper_wick"] = df["high"] - df[["open", "close"]].max(axis=1)
+        df["lower_wick"] = df[["open", "close"]].min(axis=1) - df["low"]
+        df["upper_wick_ratio"] = (df["upper_wick"] / hi_lo.replace(0, np.nan)).fillna(0.0)
+        df["lower_wick_ratio"] = (df["lower_wick"] / hi_lo.replace(0, np.nan)).fillna(0.0)
 
-        # Vectorized per-filter boolean series
-        ema_up = (df["ema8"] > df["ema21"]).astype(float)
-        rsi_up = ((df["rsi"] > 50) & (df["rsi"] < 70)).astype(float)
-        rsi_dn = ((df["rsi"] > 30) & (df["rsi"] < 50)).astype(float)
-        macd_up = (df["macd"] > df["macd_sig"]).astype(float)
-        cp_up = (df["close_position"] > 0.65).astype(float)
-        cp_dn = (df["close_position"] < 0.35).astype(float)
+        # Shift all candle metrics by 1 — we're computing signal from the CLOSED candle
+        # to predict the NEXT candle (same as live signals.py using iloc[-2])
+        for col in ["close_position", "body_ratio", "candle_is_green",
+                    "upper_wick_ratio", "lower_wick_ratio", "volume_ratio", "rsi5"]:
+            df[f"s_{col}"] = df[col].shift(1)
 
-        zero = pd.Series(0.0, index=df.index)
+        # ── Consecutive same-color candle count ──────────────────────
+        # Vectorized: count consecutive same-color candles ending at each row
+        green = df["candle_is_green"].astype(int)
+        # Group by runs of same value, count within each group
+        group = (green != green.shift()).cumsum()
+        df["consecutive"] = green.groupby(group).cumcount() + 1
+        df["s_consecutive"] = df["consecutive"].shift(1).fillna(1)
 
-        df["score_up"] = (
-            (ema_up if p.require_ema else zero)
-            + (rsi_up if p.require_rsi else zero)
-            + (macd_up if p.require_macd else zero)
-            + cp_up
-        )
-        df["score_dn"] = (
-            ((1 - ema_up) if p.require_ema else zero)
-            + (rsi_dn if p.require_rsi else zero)
-            + ((1 - macd_up) if p.require_macd else zero)
-            + cp_dn
-        )
-
-        df["direction"] = np.select(
-            [df["score_up"] >= p.min_score, df["score_dn"] >= p.min_score],
-            ["UP", "DOWN"],
-            default="SKIP",
-        )
-
-        # Previous candle color: shift close/open by 1 row to get the candle that
-        # already closed when the signal fires (same logic as signals.py)
+        # Previous candle color for display
         prev_close = df["close"].shift(1)
         prev_open = df["open"].shift(1)
         df["prev_candle_color"] = np.select(
@@ -192,14 +195,72 @@ class BacktestEngine:
             default="NEUTRAL",
         )
 
-        # Store individual filter labels for FilterStats
-        df["_ema_label"] = np.where(ema_up == 1, "bull", "bear")
-        df["_rsi_label"] = np.select(
-            [rsi_up == 1, rsi_dn == 1], ["bull", "bear"], default="neutral"
+        # ── Vectorized scoring ────────────────────────────────────────
+        sc_up = pd.Series(0.0, index=df.index)
+        sc_dn = pd.Series(0.0, index=df.index)
+
+        # Signal 1: Close Position
+        sc_up += (df["s_close_position"] >= p.close_pos_bull).astype(float)
+        sc_dn += (df["s_close_position"] <= p.close_pos_bear).astype(float)
+
+        # Signal 2: Wick Rejection
+        wr_min = p.wick_ratio_min
+        wr_rev = wr_min + 0.1
+        anti = max(0.0, wr_min - 0.1)
+        green_clean = df["s_candle_is_green"] & (df["s_lower_wick_ratio"] >= wr_min) & (df["s_upper_wick_ratio"] < anti)
+        red_clean   = ~df["s_candle_is_green"] & (df["s_upper_wick_ratio"] >= wr_min) & (df["s_lower_wick_ratio"] < anti)
+        green_rev   = df["s_candle_is_green"] & (df["s_upper_wick_ratio"] >= wr_rev)
+        red_rev     = ~df["s_candle_is_green"] & (df["s_lower_wick_ratio"] >= wr_rev)
+        sc_up += green_clean.astype(float) + red_rev.astype(float)
+        sc_dn += red_clean.astype(float) + green_rev.astype(float)
+
+        # Signal 3: Body Strength
+        strong_green = df["s_candle_is_green"] & (df["s_body_ratio"] >= p.body_ratio_min)
+        strong_red   = ~df["s_candle_is_green"] & (df["s_body_ratio"] >= p.body_ratio_min)
+        sc_up += strong_green.astype(float)
+        sc_dn += strong_red.astype(float)
+
+        # Signal 4: RSI(5)
+        sc_up += (df["s_rsi5"] > p.rsi5_bull).astype(float)
+        sc_dn += (df["s_rsi5"] < p.rsi5_bear).astype(float)
+
+        # Signal 5: Volume Confirmation
+        high_vol_green = (df["s_volume_ratio"] >= p.volume_ratio_min) & df["s_candle_is_green"]
+        high_vol_red   = (df["s_volume_ratio"] >= p.volume_ratio_min) & ~df["s_candle_is_green"]
+        sc_up += high_vol_green.astype(float)
+        sc_dn += high_vol_red.astype(float)
+
+        # Mean Reversion Penalty: 4+ consecutive same-color candles
+        penalty_green = (df["s_consecutive"] >= p.consecutive_penalty) & df["s_candle_is_green"]
+        penalty_red   = (df["s_consecutive"] >= p.consecutive_penalty) & ~df["s_candle_is_green"]
+        sc_up = (sc_up - penalty_green.astype(float)).clip(lower=0)
+        sc_dn = (sc_dn - penalty_red.astype(float)).clip(lower=0)
+
+        df["score_up"] = sc_up
+        df["score_dn"] = sc_dn
+
+        # Doji veto + direction
+        doji = df["s_body_ratio"] < p.doji_threshold
+        df["direction"] = np.select(
+            [
+                doji,
+                (sc_up >= p.min_score) & (sc_up > sc_dn),
+                (sc_dn >= p.min_score) & (sc_dn > sc_up),
+            ],
+            ["SKIP", "UP", "DOWN"],
+            default="SKIP",
         )
-        df["_macd_label"] = np.where(macd_up == 1, "bull", "bear")
+
+        # Filter labels for FilterStats
+        df["_ema_label"] = np.where(df["ema8"] > df["ema21"], "bull", "bear")
+        df["_rsi_label"] = np.select(
+            [(df["rsi"] > 50) & (df["rsi"] < 70), (df["rsi"] > 30) & (df["rsi"] < 50)],
+            ["bull", "bear"], default="neutral"
+        )
+        df["_macd_label"] = np.where(df["macd"] > df["macd_sig"], "bull", "bear")
         df["_cp_label"] = np.select(
-            [cp_up == 1, cp_dn == 1], ["bull", "bear"], default="neutral"
+            [df["s_close_position"] >= p.close_pos_bull, df["s_close_position"] <= p.close_pos_bear],
+            ["bull", "bear"], default="neutral"
         )
 
         return df
@@ -218,7 +279,7 @@ class BacktestEngine:
 
         df = self.fetch_btc_ohlcv()
         df = self.compute_indicators_vectorized(df)
-        df = df.dropna(subset=["macd", "rsi", "ema8", "ema21"])
+        df = df.dropna(subset=["s_rsi5", "s_close_position", "s_body_ratio"])
 
         # Trim to requested window (warmup candles were kept for indicator computation)
         start_ts = pd.Timestamp(p.start_ts, unit="s", tz="UTC")

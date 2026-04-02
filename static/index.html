@@ -2689,21 +2689,41 @@
                             </div>
                         </div>
 
-                        <!-- Filters -->
+                        <!-- Signal Thresholds -->
                         <div>
-                            <div style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted);margin-bottom:6px;">REQUIRE FILTERS</div>
-                            <div style="display:flex;gap:12px;">
-                                <label style="display:flex;align-items:center;gap:5px;font-family:var(--font-mono);font-size:12px;color:var(--text-primary);cursor:pointer;">
-                                    <input type="checkbox" id="bt-ema" checked style="accent-color:var(--accent-green);" /> EMA
+                            <div style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted);margin-bottom:6px;">SIGNAL THRESHOLDS</div>
+                            <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;">
+                                <label style="display:flex;align-items:center;gap:4px;font-family:var(--font-mono);font-size:11px;color:var(--text-primary);" title="RSI(5) above this = bullish momentum">
+                                    <input type="number" id="bt-rsi5-bull" value="55" min="50" max="80" step="1" style="width:42px;padding:4px 6px;font-family:var(--font-mono);font-size:11px;background:var(--bg-stat);border:1px solid var(--border-color);border-radius:4px;color:var(--text-primary);" />
+                                    RSI Bull
                                 </label>
-                                <label style="display:flex;align-items:center;gap:5px;font-family:var(--font-mono);font-size:12px;color:var(--text-primary);cursor:pointer;">
-                                    <input type="checkbox" id="bt-rsi" checked style="accent-color:var(--accent-green);" /> RSI
+                                <label style="display:flex;align-items:center;gap:4px;font-family:var(--font-mono);font-size:11px;color:var(--text-primary);" title="RSI(5) below this = bearish momentum">
+                                    <input type="number" id="bt-rsi5-bear" value="45" min="20" max="50" step="1" style="width:42px;padding:4px 6px;font-family:var(--font-mono);font-size:11px;background:var(--bg-stat);border:1px solid var(--border-color);border-radius:4px;color:var(--text-primary);" />
+                                    RSI Bear
                                 </label>
-                                <label style="display:flex;align-items:center;gap:5px;font-family:var(--font-mono);font-size:12px;color:var(--text-primary);cursor:pointer;">
-                                    <input type="checkbox" id="bt-macd" checked style="accent-color:var(--accent-green);" /> MACD
+                                <label style="display:flex;align-items:center;gap:4px;font-family:var(--font-mono);font-size:11px;color:var(--text-primary);" title="Close position bull threshold">
+                                    <input type="number" id="bt-close-pos-bull" value="0.65" min="0.5" max="0.9" step="0.05" style="width:48px;padding:4px 6px;font-family:var(--font-mono);font-size:11px;background:var(--bg-stat);border:1px solid var(--border-color);border-radius:4px;color:var(--text-primary);" />
+                                    CP Bull
                                 </label>
-                                <label style="display:flex;align-items:center;gap:5px;font-family:var(--font-mono);font-size:12px;color:var(--accent-amber);cursor:pointer;" title="Only trade when signal direction matches previous candle color (green=UP, red=DOWN)">
-                                    <input type="checkbox" id="bt-prev-candle" style="accent-color:var(--accent-amber);" /> Prev Candle
+                                <label style="display:flex;align-items:center;gap:4px;font-family:var(--font-mono);font-size:11px;color:var(--text-primary);" title="Close position bear threshold">
+                                    <input type="number" id="bt-close-pos-bear" value="0.35" min="0.1" max="0.5" step="0.05" style="width:48px;padding:4px 6px;font-family:var(--font-mono);font-size:11px;background:var(--bg-stat);border:1px solid var(--border-color);border-radius:4px;color:var(--text-primary);" />
+                                    CP Bear
+                                </label>
+                                <label style="display:flex;align-items:center;gap:4px;font-family:var(--font-mono);font-size:11px;color:var(--text-primary);" title="Min body ratio for strong candle signal">
+                                    <input type="number" id="bt-body-ratio" value="0.55" min="0.2" max="0.9" step="0.05" style="width:48px;padding:4px 6px;font-family:var(--font-mono);font-size:11px;background:var(--bg-stat);border:1px solid var(--border-color);border-radius:4px;color:var(--text-primary);" />
+                                    Body Min
+                                </label>
+                                <label style="display:flex;align-items:center;gap:4px;font-family:var(--font-mono);font-size:11px;color:var(--text-primary);" title="Body ratio below this = doji, skip trade">
+                                    <input type="number" id="bt-doji" value="0.15" min="0.05" max="0.4" step="0.05" style="width:48px;padding:4px 6px;font-family:var(--font-mono);font-size:11px;background:var(--bg-stat);border:1px solid var(--border-color);border-radius:4px;color:var(--text-primary);" />
+                                    Doji Skip
+                                </label>
+                                <label style="display:flex;align-items:center;gap:4px;font-family:var(--font-mono);font-size:11px;color:var(--text-primary);" title="Min volume ratio for confirmation">
+                                    <input type="number" id="bt-vol-ratio" value="1.3" min="1.0" max="3.0" step="0.1" style="width:42px;padding:4px 6px;font-family:var(--font-mono);font-size:11px;background:var(--bg-stat);border:1px solid var(--border-color);border-radius:4px;color:var(--text-primary);" />
+                                    Vol Min
+                                </label>
+                                <label style="display:flex;align-items:center;gap:4px;font-family:var(--font-mono);font-size:11px;color:var(--text-primary);" title="Consecutive same-color candles before mean reversion penalty">
+                                    <input type="number" id="bt-consec" value="4" min="2" max="10" step="1" style="width:36px;padding:4px 6px;font-family:var(--font-mono);font-size:11px;background:var(--bg-stat);border:1px solid var(--border-color);border-radius:4px;color:var(--text-primary);" />
+                                    Consec
                                 </label>
                             </div>
                         </div>
@@ -4686,14 +4706,19 @@
                     entry_price_cents: entryCents,
                     stake_cents: stakeCents,
                     mode: mode,
-                    require_ema: document.getElementById("bt-ema").checked,
-                    require_rsi: document.getElementById("bt-rsi").checked,
-                    require_macd: document.getElementById("bt-macd").checked,
-                    require_prev_candle_match: document.getElementById("bt-prev-candle").checked,
                     slippage_cents: slippageCents,
                     use_limit_order: document.getElementById("bt-use-limit").checked,
                     limit_price_cents: parseInt(document.getElementById("bt-limit-price").value || "45"),
                     limit_window_minutes: parseInt(document.getElementById("bt-limit-window").value || "3"),
+                    rsi5_bull: parseFloat(document.getElementById("bt-rsi5-bull").value || "55"),
+                    rsi5_bear: parseFloat(document.getElementById("bt-rsi5-bear").value || "45"),
+                    close_pos_bull: parseFloat(document.getElementById("bt-close-pos-bull").value || "0.65"),
+                    close_pos_bear: parseFloat(document.getElementById("bt-close-pos-bear").value || "0.35"),
+                    body_ratio_min: parseFloat(document.getElementById("bt-body-ratio").value || "0.55"),
+                    doji_threshold: parseFloat(document.getElementById("bt-doji").value || "0.15"),
+                    volume_ratio_min: parseFloat(document.getElementById("bt-vol-ratio").value || "1.3"),
+                    wick_ratio_min: 0.3,
+                    consecutive_penalty: parseInt(document.getElementById("bt-consec").value || "4"),
                 };
 
                 try {
