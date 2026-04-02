@@ -1,0 +1,71 @@
+you are using nologin method, data you access may be limited
+INFO:     Started server process [73536]
+INFO:     Waiting for application startup.
+2026-03-19 17:58:09,591 - main - INFO - Starting application...
+2026-03-19 17:58:09,591 - bot.live_price - INFO - Kraken live price feed started
+2026-03-19 17:58:09,591 - bot.scheduler - INFO - Scheduler background task started
+2026-03-19 17:58:09,591 - bot.live_price - INFO - Connecting to Kraken WebSocket...
+2026-03-19 17:58:09,602 - bot.scheduler - INFO - Signal scheduler started
+2026-03-19 17:58:09,602 - bot.scheduler - INFO - Computing signals...
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+2026-03-19 17:58:10,071 - tvDatafeed.main - ERROR - Connection to remote host was lost.
+2026-03-19 17:58:10,072 - tvDatafeed.main - ERROR - no data, please check the exchange and symbol
+2026-03-19 17:58:10,072 - bot.signals - WARNING - TradingView fetch error, attempt 1/3: Empty dataframe returned from TradingView
+2026-03-19 17:58:10,959 - bot.live_price - INFO - Connected to Kraken WebSocket
+2026-03-19 17:58:10,959 - bot.live_price - INFO - Subscribed to XBT/USD ticker
+2026-03-19 17:58:10,959 - bot.live_price - INFO - Kraken system status: online
+2026-03-19 17:58:11,106 - bot.live_price - INFO - Kraken subscription: subscribed for XBT/USD
+2026-03-19 17:58:11,111 - bot.live_price - INFO - New candle started at 2026-03-19 21:45:00+00:00, open: $0.00
+2026-03-19 17:58:11,111 - bot.live_price - INFO - 🟢 BTC: $70,471.50 (candle: +0.000%)
+2026-03-19 17:58:12,432 - bot.signals - INFO - Successfully fetched data from TradingView: COINBASE:BTCUSD
+2026-03-19 17:58:12,437 - bot.scheduler - INFO - Signal computed: direction=SKIP, confidence=SKIP
+2026-03-19 17:58:12,437 - bot.scheduler - INFO - Sleeping 109.6s until next candle close at 22:00:00 UTC
+INFO:     127.0.0.1:54130 - "GET / HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54130 - "GET /api/signals HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54134 - "WebSocket /ws" [accepted]
+2026-03-19 17:58:15,553 - main - INFO - WebSocket client connected from Address(host='127.0.0.1', port=54134)
+2026-03-19 17:58:15,553 - bot.scheduler - INFO - Client connected. Total clients: 1
+INFO:     connection open
+INFO:     127.0.0.1:54138 - "GET /api/live_price HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54144 - "GET /api/live_price HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54132 - "GET / HTTP/1.1" 200 OK
+2026-03-19 17:58:29,745 - bot.scheduler - INFO - Client disconnected. Total clients: 0
+2026-03-19 17:58:29,745 - main - INFO - WebSocket client disconnected from Address(host='127.0.0.1', port=54134)
+INFO:     connection closed
+INFO:     127.0.0.1:54132 - "GET /api/signals HTTP/1.1" 200 OK
+INFO:     127.0.0.1:54154 - "WebSocket /ws" [accepted]
+2026-03-19 17:58:29,760 - main - INFO - WebSocket client connected from Address(host='127.0.0.1', port=54154)
+2026-03-19 17:58:29,760 - bot.scheduler - INFO - Client connected. Total clients: 1
+INFO:     connection open
+2026-03-19 18:00:00,176 - bot.live_price - INFO - New candle started at 2026-03-19 22:00:00+00:00, open: $70,424.90
+2026-03-19 18:00:01,252 - bot.scheduler - INFO - Client disconnected. Total clients: 0
+2026-03-19 18:00:01,252 - main - INFO - WebSocket client disconnected from Address(host='127.0.0.1', port=54154)
+INFO:     connection closed
+2026-03-19 18:00:02,001 - bot.scheduler - INFO - Computing signals...
+2026-03-19 18:01:35,340 - tvDatafeed.main - ERROR - Connection timed out
+2026-03-19 18:01:35,468 - tvDatafeed.main - ERROR - no data, please check the exchange and symbol
+2026-03-19 18:01:35,485 - bot.signals - WARNING - TradingView fetch error, attempt 1/3: Empty dataframe returned from TradingView
+INFO:     127.0.0.1:54454 - "WebSocket /ws" [accepted]
+2026-03-19 18:01:35,922 - main - INFO - WebSocket client connected from Address(host='127.0.0.1', port=54454)
+2026-03-19 18:01:35,922 - bot.scheduler - INFO - Client connected. Total clients: 1
+INFO:     connection open
+2026-03-19 18:01:42,531 - bot.signals - INFO - Successfully fetched data from TradingView: COINBASE:BTCUSD
+2026-03-19 18:01:42,550 - bot.scheduler - INFO - Signal computed: direction=SKIP, confidence=SKIP
+2026-03-19 18:01:42,551 - bot.scheduler - INFO - Sleeping 799.4s until next candle close at 22:15:00 UTC
+2026-03-19 18:01:55,499 - bot.live_price - WARNING - Kraken WebSocket closed: sent 1011 (internal error) keepalive ping timeout; no close frame received
+2026-03-19 18:01:55,499 - bot.live_price - INFO - Reconnecting in 3 seconds...
+2026-03-19 18:01:58,500 - bot.live_price - INFO - Connecting to Kraken WebSocket...
+2026-03-19 18:02:00,241 - bot.live_price - INFO - Connected to Kraken WebSocket
+2026-03-19 18:02:00,244 - bot.live_price - INFO - Subscribed to XBT/USD ticker
+2026-03-19 18:02:00,244 - bot.live_price - INFO - Kraken system status: online
+2026-03-19 18:02:00,372 - bot.live_price - INFO - Kraken subscription: subscribed for XBT/USD
+2026-03-19 18:03:04,141 - bot.live_price - INFO - 🟢 BTC: $70,441.30 (candle: +0.023%)
+2026-03-19 18:06:00,329 - bot.live_price - INFO - 🔴 BTC: $70,329.20 (candle: -0.136%)
+2026-03-19 18:09:14,713 - bot.live_price - INFO - 🟢 BTC: $70,438.10 (candle: +0.019%)
+2026-03-19 18:12:24,992 - bot.live_price - INFO - 🔴 BTC: $70,385.10 (candle: -0.057%)
+2026-03-19 18:15:01,524 - bot.live_price - INFO - New candle started at 2026-03-19 22:15:00+00:00, open: $70,449.20
+2026-03-19 18:15:02,000 - bot.scheduler - INFO - Computing signals...
+2026-03-19 18:15:03,138 - bot.signals - INFO - Successfully fetched data from TradingView: COINBASE:BTCUSD
+2026-03-19 18:15:03,151 - bot.scheduler - INFO - Signal computed: direction=SKIP, confidence=SKIP
+2026-03-19 18:15:03,152 - bot.scheduler - INFO - Sleeping 898.8s until next candle close at 22:30:00 UTC

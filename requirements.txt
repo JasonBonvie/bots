@@ -1,0 +1,12 @@
+fastapi
+uvicorn[standard]
+pandas
+pandas-ta
+websockets
+pydantic
+python-multipart
+python-dotenv
+aiohttp
+cryptography
+sqlalchemy[asyncio]
+aiosqlite

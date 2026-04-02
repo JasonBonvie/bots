@@ -1,0 +1,495 @@
+"""
+Backtest engine for the BTC/Kalshi 15-minute momentum strategy.
+
+All computation is synchronous and vectorized; the endpoint runs this via
+asyncio.run_in_executor so the event loop stays unblocked.
+"""
+import json
+import logging
+import time
+import urllib.request
+from typing import Dict, List, Optional
+
+import numpy as np
+import pandas as pd
+import pandas_ta as ta
+
+from .models import (
+    BacktestParams,
+    BacktestResult,
+    EquityPoint,
+    FilterStats,
+    TradeRecord,
+)
+
+logger = logging.getLogger(__name__)
+
+# Binance public klines endpoint (no API key required)
+_BINANCE_KLINES = "https://api.binance.com/api/v3/klines"
+_BINANCE_PAGE_SIZE = 1000  # max candles Binance returns per call
+
+
+class BacktestEngine:
+    """
+    Synchronous backtest engine — one instance per request, not shared.
+
+    In btc_only mode the full pipeline runs inside run_btc_only().
+    In kalshi mode the caller must pre-fetch Kalshi data asynchronously and
+    pass it into run_kalshi_mode() because async I/O can't run inside an executor.
+    """
+
+    def __init__(self, params: BacktestParams):
+        self.params = params
+
+    # ------------------------------------------------------------------
+    # Data fetching
+    # ------------------------------------------------------------------
+
+    def fetch_btc_ohlcv(self) -> pd.DataFrame:
+        """
+        Fetch 15-min BTC/USDT candles for [start_ts, end_ts] from Binance.
+        Paginates forward using startTime until end_ts is covered.
+        Returns a DataFrame indexed by UTC timestamp with open/high/low/close/volume.
+        """
+        p = self.params
+        all_records: List[dict] = []
+        # Fetch extra candles before start for MACD/EMA warmup (~40 x 15min = 600min)
+        warmup_seconds = 40 * 15 * 60
+        start_ms = (p.start_ts - warmup_seconds) * 1000
+        end_ms = p.end_ts * 1000
+
+        while start_ms < end_ms:
+            url = (
+                f"{_BINANCE_KLINES}"
+                f"?symbol=BTCUSDT&interval=15m"
+                f"&startTime={start_ms}&endTime={end_ms}"
+                f"&limit={_BINANCE_PAGE_SIZE}"
+            )
+            req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+            data = None
+            for attempt in range(3):
+                try:
+                    with urllib.request.urlopen(req, timeout=15) as resp:
+                        data = json.loads(resp.read().decode())
+                    break
+                except Exception as exc:
+                    if attempt == 2:
+                        raise RuntimeError(f"Binance fetch failed: {exc}") from exc
+                    time.sleep(1.0 * (attempt + 1))
+
+            if data is None:
+                raise ValueError("Binance: no response")
+            if isinstance(data, dict) and data.get("code"):
+                raise ValueError(f"Binance error: {data.get('msg', 'unknown')}")
+            if not data:
+                break
+
+            for k in data:
+                # Binance kline format: [open_time, open, high, low, close, volume, ...]
+                ts_sec = int(k[0]) // 1000
+                o, h, l, c = float(k[1]), float(k[2]), float(k[3]), float(k[4])
+                vol = float(k[5])
+                if o == 0 and c == 0:
+                    continue
+                all_records.append({
+                    "timestamp": pd.Timestamp(ts_sec, unit="s", tz="UTC"),
+                    "open": o,
+                    "high": h,
+                    "low": l,
+                    "close": c,
+                    "volume": vol,
+                })
+
+            # Move start forward past the last candle we received
+            last_open_time = int(data[-1][0])
+            if last_open_time + 900_000 >= end_ms:
+                break
+            start_ms = last_open_time + 900_000  # next 15-min candle
+            time.sleep(0.1)  # be polite to Binance rate limits
+
+        if not all_records:
+            raise ValueError("No OHLCV data returned for the requested date range.")
+
+        df = pd.DataFrame(all_records)
+        df.set_index("timestamp", inplace=True)
+        df.sort_index(inplace=True)
+        df = df[~df.index.duplicated(keep="last")]
+
+        # Don't trim to requested window here — warmup candles are needed
+        # for indicator computation. Callers trim after computing indicators.
+
+        if df.empty:
+            raise ValueError("No OHLCV data within the requested date range after filtering.")
+
+        return df
+
+    # ------------------------------------------------------------------
+    # Indicator computation (vectorized over full DataFrame)
+    # ------------------------------------------------------------------
+
+    def compute_indicators_vectorized(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Compute all 4 momentum indicators in one pass over the full DataFrame.
+        Appends indicator columns and direction/score columns.
+        Rows with NaN indicators (MACD warmup period ~33 bars) are left as-is
+        and should be dropped by the caller before iterating trades.
+        """
+        p = self.params
+        df = df.copy()
+
+        df["rsi"] = ta.rsi(df["close"], length=14)
+        df["ema8"] = ta.ema(df["close"], length=8)
+        df["ema21"] = ta.ema(df["close"], length=21)
+
+        macd_df = ta.macd(df["close"], fast=12, slow=26, signal=9)
+        df["macd"] = macd_df["MACD_12_26_9"]
+        df["macd_sig"] = macd_df["MACDs_12_26_9"]
+
+        vol_sma = df["volume"].rolling(window=20).mean()
+        df["volume_ratio"] = (df["volume"] / vol_sma).fillna(1.0)
+
+        hi_lo = df["high"] - df["low"]
+        df["close_position"] = (
+            (df["close"] - df["low"]) / hi_lo.replace(0, np.nan)
+        ).fillna(0.5)
+
+        # Vectorized per-filter boolean series
+        ema_up = (df["ema8"] > df["ema21"]).astype(float)
+        rsi_up = ((df["rsi"] > 50) & (df["rsi"] < 70)).astype(float)
+        rsi_dn = ((df["rsi"] > 30) & (df["rsi"] < 50)).astype(float)
+        macd_up = (df["macd"] > df["macd_sig"]).astype(float)
+        cp_up = (df["close_position"] > 0.65).astype(float)
+        cp_dn = (df["close_position"] < 0.35).astype(float)
+
+        zero = pd.Series(0.0, index=df.index)
+
+        df["score_up"] = (
+            (ema_up if p.require_ema else zero)
+            + (rsi_up if p.require_rsi else zero)
+            + (macd_up if p.require_macd else zero)
+            + cp_up
+        )
+        df["score_dn"] = (
+            ((1 - ema_up) if p.require_ema else zero)
+            + (rsi_dn if p.require_rsi else zero)
+            + ((1 - macd_up) if p.require_macd else zero)
+            + cp_dn
+        )
+
+        df["direction"] = np.select(
+            [df["score_up"] >= p.min_score, df["score_dn"] >= p.min_score],
+            ["UP", "DOWN"],
+            default="SKIP",
+        )
+
+        # Previous candle color: shift close/open by 1 row to get the candle that
+        # already closed when the signal fires (same logic as signals.py)
+        prev_close = df["close"].shift(1)
+        prev_open = df["open"].shift(1)
+        df["prev_candle_color"] = np.select(
+            [prev_close > prev_open, prev_close < prev_open],
+            ["GREEN", "RED"],
+            default="NEUTRAL",
+        )
+
+        # Store individual filter labels for FilterStats
+        df["_ema_label"] = np.where(ema_up == 1, "bull", "bear")
+        df["_rsi_label"] = np.select(
+            [rsi_up == 1, rsi_dn == 1], ["bull", "bear"], default="neutral"
+        )
+        df["_macd_label"] = np.where(macd_up == 1, "bull", "bear")
+        df["_cp_label"] = np.select(
+            [cp_up == 1, cp_dn == 1], ["bull", "bear"], default="neutral"
+        )
+
+        return df
+
+    # ------------------------------------------------------------------
+    # BTC-only mode
+    # ------------------------------------------------------------------
+
+    def run_btc_only(self) -> BacktestResult:
+        """
+        Fast mode: signal direction vs next-candle direction determines outcome.
+        Entry price is params.entry_price_cents (assumed flat).
+        """
+        t0 = time.time()
+        p = self.params
+
+        df = self.fetch_btc_ohlcv()
+        df = self.compute_indicators_vectorized(df)
+        df = df.dropna(subset=["macd", "rsi", "ema8", "ema21"])
+
+        # Trim to requested window (warmup candles were kept for indicator computation)
+        start_ts = pd.Timestamp(p.start_ts, unit="s", tz="UTC")
+        end_ts = pd.Timestamp(p.end_ts, unit="s", tz="UTC")
+        df = df.loc[(df.index >= start_ts) & (df.index <= end_ts)]
+
+        trade_log: List[TradeRecord] = []
+        equity = 0
+        equity_curve: List[EquityPoint] = []
+        peak_equity = 0
+        max_drawdown = 0
+
+        rows = df.reset_index()
+        n = len(rows)
+
+        for i in range(n - 1):  # stop before last row (need next candle)
+            row = rows.iloc[i]
+            direction = row["direction"]
+            ts_int = int(row["timestamp"].timestamp())
+
+            if direction == "SKIP":
+                equity_curve.append(EquityPoint(time=ts_int, equity=equity))
+                continue
+
+            # Candle confirmation filter: only trade when signal matches previous candle color
+            if p.require_prev_candle_match:
+                prev_color = row.get("prev_candle_color", "NEUTRAL")
+                if direction == "UP" and prev_color != "GREEN":
+                    equity_curve.append(EquityPoint(time=ts_int, equity=equity))
+                    continue
+                if direction == "DOWN" and prev_color != "RED":
+                    equity_curve.append(EquityPoint(time=ts_int, equity=equity))
+                    continue
+
+            next_close = float(rows.iloc[i + 1]["close"])
+            current_close = float(row["close"])
+
+            won = (next_close > current_close) if direction == "UP" else (next_close < current_close)
+
+            entry = min(99, p.entry_price_cents + p.slippage_cents)
+            exit_price = 100 if won else 0
+            qty = max(1, p.stake_cents // entry)
+            pnl = (exit_price - entry) * qty
+
+            equity += pnl
+            peak_equity = max(peak_equity, equity)
+            max_drawdown = max(max_drawdown, peak_equity - equity)
+
+            trade_log.append(TradeRecord(
+                time=ts_int,
+                direction=direction,
+                score_up=float(row["score_up"]),
+                score_dn=float(row["score_dn"]),
+                btc_price=current_close,
+                entry_price_cents=entry,
+                exit_price_cents=exit_price,
+                result="WIN" if won else "LOSS",
+                pnl_cents=pnl,
+            ))
+            equity_curve.append(EquityPoint(time=ts_int, equity=equity))
+
+        return self._build_result(df, trade_log, equity_curve, max_drawdown, time.time() - t0)
+
+    # ------------------------------------------------------------------
+    # Kalshi mode
+    # ------------------------------------------------------------------
+
+    def run_kalshi_mode(
+        self,
+        df_btc: pd.DataFrame,
+        kalshi_markets: List[Dict],
+        kalshi_candles: Dict[str, List[Dict]],
+    ) -> BacktestResult:
+        """
+        Full mode: uses real Kalshi settlement outcomes and real entry prices.
+
+        kalshi_markets: list of settled market dicts, each with keys:
+            ticker, close_time (ISO string), result ("yes"/"no"), floor_strike
+        kalshi_candles: ticker -> list of 1-min candlestick dicts, each with:
+            end_period_ts, yes_ask {open, close, ...} (dollar strings)
+        """
+        t0 = time.time()
+        p = self.params
+
+        df = self.compute_indicators_vectorized(df_btc)
+        df = df.dropna(subset=["macd", "rsi", "ema8", "ema21"])
+
+        # Trim to requested window (warmup candles were kept for indicator computation)
+        start_ts = pd.Timestamp(p.start_ts, unit="s", tz="UTC")
+        end_ts = pd.Timestamp(p.end_ts, unit="s", tz="UTC")
+        df = df.loc[(df.index >= start_ts) & (df.index <= end_ts)]
+
+        # Build lookup: market close boundary ts -> market dict.
+        # Each KXBTC15M market opens at candle T close and resolves at candle T+900.
+        # We index by close_time (snapped to 15-min boundary) so a signal at T
+        # can look up the market resolving at T+900.
+        market_by_close: Dict[int, Dict] = {}
+        for m in kalshi_markets:
+            try:
+                close_ts = int(pd.Timestamp(m["close_time"]).timestamp())
+                close_ts = (close_ts // 900) * 900  # snap to 15-min grid
+                market_by_close[close_ts] = m
+            except Exception:
+                continue
+
+        trade_log: List[TradeRecord] = []
+        equity = 0
+        equity_curve: List[EquityPoint] = []
+        peak_equity = 0
+        max_drawdown = 0
+        limit_signals = 0
+        limit_fills = 0
+
+        rows = df.reset_index()
+        for _, row in rows.iterrows():
+            direction = row["direction"]
+            ts_int = int(row["timestamp"].timestamp())
+
+            # Signal fires at candle T close → trade the market that resolves at T+900
+            next_candle_ts = ts_int + 900
+
+            if direction == "SKIP" or next_candle_ts not in market_by_close:
+                equity_curve.append(EquityPoint(time=ts_int, equity=equity))
+                continue
+
+            # Candle confirmation filter: only trade when signal matches previous candle color
+            if p.require_prev_candle_match:
+                prev_color = row.get("prev_candle_color", "NEUTRAL")
+                if direction == "UP" and prev_color != "GREEN":
+                    equity_curve.append(EquityPoint(time=ts_int, equity=equity))
+                    continue
+                if direction == "DOWN" and prev_color != "RED":
+                    equity_curve.append(EquityPoint(time=ts_int, equity=equity))
+                    continue
+
+            market = market_by_close[next_candle_ts]
+            ticker = market.get("ticker", "")
+            market_result = market.get("result", "")  # "yes" or "no"
+
+            # Determine win: UP signal bets YES, DOWN signal bets NO
+            if direction == "UP":
+                won = market_result == "yes"
+            else:
+                won = market_result == "no"
+
+            candles = kalshi_candles.get(ticker, [])
+
+            if p.use_limit_order:
+                # --- Limit order simulation ---
+                limit_signals += 1
+                limit_price = p.limit_price_cents
+
+                # Check if ask dropped to our limit price within the fill window
+                filled = False
+                for c in candles[:p.limit_window_minutes]:
+                    try:
+                        ask_low = c.get("yes_ask", {})
+                        raw_low = ask_low.get("low_dollars") or ask_low.get("low")
+                        if raw_low is not None:
+                            low_cents = int(float(raw_low) * 100)
+                            if low_cents <= limit_price:
+                                filled = True
+                                break
+                    except (TypeError, ValueError):
+                        continue
+
+                if not filled:
+                    equity_curve.append(EquityPoint(time=ts_int, equity=equity))
+                    continue
+
+                limit_fills += 1
+                entry = limit_price
+            else:
+                # --- Market order: use first candle's ask open ---
+                entry = p.entry_price_cents
+                if candles:
+                    try:
+                        ask_data = candles[0].get("yes_ask", {})
+                        raw_ask = ask_data.get("open_dollars") or ask_data.get("open")
+                        if raw_ask is not None:
+                            entry = max(1, min(99, int(float(raw_ask) * 100)))
+                    except (TypeError, ValueError):
+                        pass
+
+                # Apply slippage (worsens entry price)
+                entry = min(99, entry + p.slippage_cents)
+
+            exit_price = 100 if won else 0
+            qty = max(1, p.stake_cents // entry)
+            pnl = (exit_price - entry) * qty
+
+            equity += pnl
+            peak_equity = max(peak_equity, equity)
+            max_drawdown = max(max_drawdown, peak_equity - equity)
+
+            trade_log.append(TradeRecord(
+                time=ts_int,
+                direction=direction,
+                score_up=float(row["score_up"]),
+                score_dn=float(row["score_dn"]),
+                btc_price=float(row["close"]),
+                entry_price_cents=entry,
+                exit_price_cents=exit_price,
+                result="WIN" if won else "LOSS",
+                pnl_cents=pnl,
+                market_ticker=ticker,
+            ))
+            equity_curve.append(EquityPoint(time=ts_int, equity=equity))
+
+        result = self._build_result(df, trade_log, equity_curve, max_drawdown, time.time() - t0)
+        result.limit_signals = limit_signals
+        result.limit_fills = limit_fills
+        result.limit_fill_rate = round(limit_fills / limit_signals, 4) if limit_signals > 0 else 0.0
+        return result
+
+    # ------------------------------------------------------------------
+    # Shared result builder
+    # ------------------------------------------------------------------
+
+    def _build_result(
+        self,
+        df: pd.DataFrame,
+        trade_log: List[TradeRecord],
+        equity_curve: List[EquityPoint],
+        max_drawdown: int,
+        duration: float,
+    ) -> BacktestResult:
+        wins = sum(1 for t in trade_log if t.result == "WIN")
+        losses = sum(1 for t in trade_log if t.result == "LOSS")
+        trades_taken = len(trade_log)
+        total_pnl = sum(t.pnl_cents for t in trade_log)
+        win_rate = wins / trades_taken if trades_taken else 0.0
+        avg_pnl = total_pnl / trades_taken if trades_taken else 0.0
+
+        # Expectancy: avg P&L per dollar risked
+        stake = self.params.stake_cents
+        expectancy = avg_pnl / stake if stake > 0 else 0.0
+
+        # FilterStats
+        valid = df.dropna(subset=["_ema_label", "_rsi_label", "_macd_label", "_cp_label"])
+        fs = FilterStats(
+            total_candles=len(valid),
+            ema_bull=int((valid["_ema_label"] == "bull").sum()),
+            ema_bear=int((valid["_ema_label"] == "bear").sum()),
+            rsi_bull=int((valid["_rsi_label"] == "bull").sum()),
+            rsi_bear=int((valid["_rsi_label"] == "bear").sum()),
+            rsi_neutral=int((valid["_rsi_label"] == "neutral").sum()),
+            macd_bull=int((valid["_macd_label"] == "bull").sum()),
+            macd_bear=int((valid["_macd_label"] == "bear").sum()),
+            close_pos_bull=int((valid["_cp_label"] == "bull").sum()),
+            close_pos_bear=int((valid["_cp_label"] == "bear").sum()),
+            close_pos_neutral=int((valid["_cp_label"] == "neutral").sum()),
+            signals_up=int((valid["direction"] == "UP").sum()),
+            signals_down=int((valid["direction"] == "DOWN").sum()),
+            signals_skip=int((valid["direction"] == "SKIP").sum()),
+        )
+
+        return BacktestResult(
+            params=self.params,
+            duration_seconds=round(duration, 2),
+            total_candles=len(valid),
+            total_signals=fs.signals_up + fs.signals_down,
+            trades_taken=trades_taken,
+            wins=wins,
+            losses=losses,
+            win_rate=round(win_rate, 4),
+            total_pnl_cents=total_pnl,
+            avg_pnl_cents=round(avg_pnl, 2),
+            expectancy=round(expectancy, 4),
+            max_drawdown_cents=max_drawdown,
+            equity_curve=equity_curve,
+            trade_log=trade_log,
+            filter_stats=fs,
+        )
