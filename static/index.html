@@ -698,6 +698,82 @@
                 transform: translateX(16px);
             }
 
+            /* Backtest signal cards */
+            .bt-signal-card {
+                background: var(--bg-stat);
+                border: 1px solid var(--border-color);
+                border-radius: 10px;
+                padding: 12px 14px;
+                display: flex;
+                flex-direction: column;
+                gap: 10px;
+                transition: border-color 0.2s, opacity 0.2s;
+            }
+            .bt-signal-card.active {
+                border-color: var(--accent-cyan, #5eead4);
+                box-shadow: 0 0 0 1px rgba(94,234,212,0.15);
+            }
+            .bt-signal-card.inactive {
+                opacity: 0.45;
+            }
+            .bt-signal-header {
+                display: flex;
+                align-items: flex-start;
+                gap: 10px;
+            }
+            .bt-signal-name {
+                font-family: var(--font-mono);
+                font-size: 12px;
+                font-weight: 600;
+                color: var(--text-primary);
+                display: flex;
+                align-items: center;
+                gap: 6px;
+            }
+            .bt-signal-desc {
+                font-family: var(--font-mono);
+                font-size: 10px;
+                color: var(--text-muted);
+                margin-top: 2px;
+                line-height: 1.4;
+            }
+            .bt-signal-badge {
+                font-size: 10px;
+                color: var(--accent-green);
+                background: rgba(74,222,128,0.12);
+                padding: 1px 5px;
+                border-radius: 8px;
+                font-weight: 500;
+            }
+            .bt-signal-params {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 8px;
+                padding-left: 46px;
+            }
+            .bt-param-label {
+                display: flex;
+                align-items: center;
+                gap: 4px;
+                font-family: var(--font-mono);
+                font-size: 10px;
+                color: var(--text-muted);
+                white-space: nowrap;
+            }
+            .bt-param-input {
+                padding: 3px 6px;
+                font-family: var(--font-mono);
+                font-size: 11px;
+                background: var(--bg-primary, #0d1117);
+                border: 1px solid var(--border-color);
+                border-radius: 4px;
+                color: var(--text-primary);
+            }
+            .bt-param-input:focus {
+                outline: none;
+                border-color: var(--accent-cyan, #5eead4);
+            }
+
             /* Tab 2: Edge Math */
             .slider-grid {
                 display: grid;
@@ -2802,83 +2878,165 @@
                             </div>
                         </div>
 
-                        <!-- Signal Thresholds -->
-                        <div>
-                            <div style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted);margin-bottom:6px;">SIGNAL THRESHOLDS</div>
-                            <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;">
-                                <label style="display:flex;align-items:center;gap:4px;font-family:var(--font-mono);font-size:11px;color:var(--text-primary);" title="RSI(5) above this = bullish momentum">
-                                    <input type="number" id="bt-rsi5-bull" value="55" min="50" max="80" step="1" style="width:42px;padding:4px 6px;font-family:var(--font-mono);font-size:11px;background:var(--bg-stat);border:1px solid var(--border-color);border-radius:4px;color:var(--text-primary);" />
-                                    RSI Bull
-                                </label>
-                                <label style="display:flex;align-items:center;gap:4px;font-family:var(--font-mono);font-size:11px;color:var(--text-primary);" title="RSI(5) below this = bearish momentum">
-                                    <input type="number" id="bt-rsi5-bear" value="45" min="20" max="50" step="1" style="width:42px;padding:4px 6px;font-family:var(--font-mono);font-size:11px;background:var(--bg-stat);border:1px solid var(--border-color);border-radius:4px;color:var(--text-primary);" />
-                                    RSI Bear
-                                </label>
-                                <label style="display:flex;align-items:center;gap:4px;font-family:var(--font-mono);font-size:11px;color:var(--text-primary);" title="Close position bull threshold">
-                                    <input type="number" id="bt-close-pos-bull" value="0.65" min="0.5" max="0.9" step="0.05" style="width:48px;padding:4px 6px;font-family:var(--font-mono);font-size:11px;background:var(--bg-stat);border:1px solid var(--border-color);border-radius:4px;color:var(--text-primary);" />
-                                    CP Bull
-                                </label>
-                                <label style="display:flex;align-items:center;gap:4px;font-family:var(--font-mono);font-size:11px;color:var(--text-primary);" title="Close position bear threshold">
-                                    <input type="number" id="bt-close-pos-bear" value="0.35" min="0.1" max="0.5" step="0.05" style="width:48px;padding:4px 6px;font-family:var(--font-mono);font-size:11px;background:var(--bg-stat);border:1px solid var(--border-color);border-radius:4px;color:var(--text-primary);" />
-                                    CP Bear
-                                </label>
-                                <label style="display:flex;align-items:center;gap:4px;font-family:var(--font-mono);font-size:11px;color:var(--text-primary);" title="Min body ratio for strong candle signal">
-                                    <input type="number" id="bt-body-ratio" value="0.55" min="0.2" max="0.9" step="0.05" style="width:48px;padding:4px 6px;font-family:var(--font-mono);font-size:11px;background:var(--bg-stat);border:1px solid var(--border-color);border-radius:4px;color:var(--text-primary);" />
-                                    Body Min
-                                </label>
-                                <label style="display:flex;align-items:center;gap:4px;font-family:var(--font-mono);font-size:11px;color:var(--text-primary);" title="Body ratio below this = doji, skip trade">
-                                    <input type="number" id="bt-doji" value="0.15" min="0.05" max="0.4" step="0.05" style="width:48px;padding:4px 6px;font-family:var(--font-mono);font-size:11px;background:var(--bg-stat);border:1px solid var(--border-color);border-radius:4px;color:var(--text-primary);" />
-                                    Doji Skip
-                                </label>
-                                <label style="display:flex;align-items:center;gap:4px;font-family:var(--font-mono);font-size:11px;color:var(--text-primary);" title="Min volume ratio for confirmation">
-                                    <input type="number" id="bt-vol-ratio" value="1.3" min="1.0" max="3.0" step="0.1" style="width:42px;padding:4px 6px;font-family:var(--font-mono);font-size:11px;background:var(--bg-stat);border:1px solid var(--border-color);border-radius:4px;color:var(--text-primary);" />
-                                    Vol Min
-                                </label>
-                                <label style="display:flex;align-items:center;gap:4px;font-family:var(--font-mono);font-size:11px;color:var(--text-primary);" title="Consecutive same-color candles before mean reversion penalty">
-                                    <input type="number" id="bt-consec" value="4" min="2" max="10" step="1" style="width:36px;padding:4px 6px;font-family:var(--font-mono);font-size:11px;background:var(--bg-stat);border:1px solid var(--border-color);border-radius:4px;color:var(--text-primary);" />
-                                    Consec
-                                </label>
+                        <!-- Signal Cards — toggle + thresholds unified per signal -->
+                        <div style="grid-column: 1 / -1;">
+                            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+                                <div style="font-family:var(--font-mono);font-size:11px;font-weight:600;color:var(--accent-cyan,#5eead4);letter-spacing:0.05em;">
+                                    SIGNALS
+                                    <span id="bt-active-count" style="margin-left:8px;font-size:10px;color:var(--text-muted);font-weight:400;">7 active</span>
+                                </div>
+                                <div style="display:flex;gap:8px;">
+                                    <button onclick="btSetAllSignals(true)" style="font-family:var(--font-mono);font-size:10px;padding:3px 10px;background:transparent;border:1px solid var(--border-color);border-radius:4px;color:var(--text-muted);cursor:pointer;">All On</button>
+                                    <button onclick="btSetAllSignals(false)" style="font-family:var(--font-mono);font-size:10px;padding:3px 10px;background:transparent;border:1px solid var(--border-color);border-radius:4px;color:var(--text-muted);cursor:pointer;">All Off</button>
+                                </div>
                             </div>
-                        </div>
+                            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px;">
 
-                        <!-- Strategy Modules (Backtest) -->
-                        <div>
-                            <div style="font-family:var(--font-mono);font-size:11px;color:var(--accent-cyan,#5eead4);margin-bottom:10px;font-weight:600;letter-spacing:0.05em;">SIGNALS — toggle to isolate or combine</div>
-                            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:8px;">
-
-                                <div style="background:var(--bg-stat);border:1px solid var(--border-color);border-radius:8px;padding:9px 12px;display:flex;align-items:center;gap:8px;">
-                                    <label class="strategy-toggle"><input type="checkbox" id="bt-use-close-pos" checked /><span class="strategy-slider"></span></label>
-                                    <div><div style="font-family:var(--font-mono);font-size:11px;font-weight:600;color:var(--text-primary);">Close Position</div><div style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted);">Where price closed in range</div></div>
+                                <!-- Signal 1: Close Position -->
+                                <div class="bt-signal-card active" id="card-close-pos">
+                                    <div class="bt-signal-header">
+                                        <label class="strategy-toggle">
+                                            <input type="checkbox" id="bt-use-close-pos" checked onchange="btUpdateCard(this,'card-close-pos')" />
+                                            <span class="strategy-slider"></span>
+                                        </label>
+                                        <div>
+                                            <div class="bt-signal-name">Close Position</div>
+                                            <div class="bt-signal-desc">Where price closed in the candle range</div>
+                                        </div>
+                                    </div>
+                                    <div class="bt-signal-params">
+                                        <label class="bt-param-label" title="Bull: price closed in upper 35% of range">
+                                            Bull ≥
+                                            <input type="number" id="bt-close-pos-bull" value="0.65" min="0.5" max="0.95" step="0.05" class="bt-param-input" style="width:46px;" />
+                                        </label>
+                                        <label class="bt-param-label" title="Bear: price closed in lower 35% of range">
+                                            Bear ≤
+                                            <input type="number" id="bt-close-pos-bear" value="0.35" min="0.05" max="0.5" step="0.05" class="bt-param-input" style="width:46px;" />
+                                        </label>
+                                    </div>
                                 </div>
 
-                                <div style="background:var(--bg-stat);border:1px solid var(--border-color);border-radius:8px;padding:9px 12px;display:flex;align-items:center;gap:8px;">
-                                    <label class="strategy-toggle"><input type="checkbox" id="bt-use-wick" checked /><span class="strategy-slider"></span></label>
-                                    <div><div style="font-family:var(--font-mono);font-size:11px;font-weight:600;color:var(--text-primary);">Wick Rejection</div><div style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted);">Long wick signals reversal</div></div>
+                                <!-- Signal 2: Wick Rejection -->
+                                <div class="bt-signal-card active" id="card-wick">
+                                    <div class="bt-signal-header">
+                                        <label class="strategy-toggle">
+                                            <input type="checkbox" id="bt-use-wick" checked onchange="btUpdateCard(this,'card-wick')" />
+                                            <span class="strategy-slider"></span>
+                                        </label>
+                                        <div>
+                                            <div class="bt-signal-name">Wick Rejection</div>
+                                            <div class="bt-signal-desc">Long wick signals continuation or reversal</div>
+                                        </div>
+                                    </div>
+                                    <div class="bt-signal-params">
+                                        <label class="bt-param-label" title="Min wick-to-range ratio to count as a rejection wick">
+                                            Min Wick
+                                            <input type="number" id="bt-wick-ratio" value="0.3" min="0.1" max="0.6" step="0.05" class="bt-param-input" style="width:46px;" />
+                                        </label>
+                                    </div>
                                 </div>
 
-                                <div style="background:var(--bg-stat);border:1px solid var(--border-color);border-radius:8px;padding:9px 12px;display:flex;align-items:center;gap:8px;">
-                                    <label class="strategy-toggle"><input type="checkbox" id="bt-use-body" checked /><span class="strategy-slider"></span></label>
-                                    <div><div style="font-family:var(--font-mono);font-size:11px;font-weight:600;color:var(--text-primary);">Body Strength</div><div style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted);">Strong body = conviction</div></div>
+                                <!-- Signal 3: Body Strength -->
+                                <div class="bt-signal-card active" id="card-body">
+                                    <div class="bt-signal-header">
+                                        <label class="strategy-toggle">
+                                            <input type="checkbox" id="bt-use-body" checked onchange="btUpdateCard(this,'card-body')" />
+                                            <span class="strategy-slider"></span>
+                                        </label>
+                                        <div>
+                                            <div class="bt-signal-name">Body Strength</div>
+                                            <div class="bt-signal-desc">Strong full-body candle = conviction</div>
+                                        </div>
+                                    </div>
+                                    <div class="bt-signal-params">
+                                        <label class="bt-param-label" title="Min body-to-range ratio for strong candle">
+                                            Min Body
+                                            <input type="number" id="bt-body-ratio" value="0.55" min="0.2" max="0.9" step="0.05" class="bt-param-input" style="width:46px;" />
+                                        </label>
+                                        <label class="bt-param-label" title="Body ratio below this = doji → skip trade (global veto)">
+                                            Doji ≤
+                                            <input type="number" id="bt-doji" value="0.15" min="0.05" max="0.4" step="0.05" class="bt-param-input" style="width:46px;" />
+                                        </label>
+                                    </div>
                                 </div>
 
-                                <div style="background:var(--bg-stat);border:1px solid var(--border-color);border-radius:8px;padding:9px 12px;display:flex;align-items:center;gap:8px;">
-                                    <label class="strategy-toggle"><input type="checkbox" id="bt-use-rsi5" checked /><span class="strategy-slider"></span></label>
-                                    <div><div style="font-family:var(--font-mono);font-size:11px;font-weight:600;color:var(--text-primary);">RSI(5)</div><div style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted);">Short-period momentum</div></div>
+                                <!-- Signal 4: RSI(5) -->
+                                <div class="bt-signal-card active" id="card-rsi5">
+                                    <div class="bt-signal-header">
+                                        <label class="strategy-toggle">
+                                            <input type="checkbox" id="bt-use-rsi5" checked onchange="btUpdateCard(this,'card-rsi5')" />
+                                            <span class="strategy-slider"></span>
+                                        </label>
+                                        <div>
+                                            <div class="bt-signal-name">RSI(5)</div>
+                                            <div class="bt-signal-desc">Short-period momentum oscillator</div>
+                                        </div>
+                                    </div>
+                                    <div class="bt-signal-params">
+                                        <label class="bt-param-label" title="RSI(5) above this = bullish momentum">
+                                            Bull &gt;
+                                            <input type="number" id="bt-rsi5-bull" value="55" min="50" max="80" step="1" class="bt-param-input" style="width:42px;" />
+                                        </label>
+                                        <label class="bt-param-label" title="RSI(5) below this = bearish momentum">
+                                            Bear &lt;
+                                            <input type="number" id="bt-rsi5-bear" value="45" min="20" max="50" step="1" class="bt-param-input" style="width:42px;" />
+                                        </label>
+                                    </div>
                                 </div>
 
-                                <div style="background:var(--bg-stat);border:1px solid var(--border-color);border-radius:8px;padding:9px 12px;display:flex;align-items:center;gap:8px;">
-                                    <label class="strategy-toggle"><input type="checkbox" id="bt-use-volume" checked /><span class="strategy-slider"></span></label>
-                                    <div><div style="font-family:var(--font-mono);font-size:11px;font-weight:600;color:var(--text-primary);">Volume Confirm</div><div style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted);">High vol in candle direction</div></div>
+                                <!-- Signal 5: Volume Confirm -->
+                                <div class="bt-signal-card active" id="card-volume">
+                                    <div class="bt-signal-header">
+                                        <label class="strategy-toggle">
+                                            <input type="checkbox" id="bt-use-volume" checked onchange="btUpdateCard(this,'card-volume')" />
+                                            <span class="strategy-slider"></span>
+                                        </label>
+                                        <div>
+                                            <div class="bt-signal-name">Volume Confirm</div>
+                                            <div class="bt-signal-desc">High volume in candle direction adds conviction</div>
+                                        </div>
+                                    </div>
+                                    <div class="bt-signal-params">
+                                        <label class="bt-param-label" title="Volume must be this multiple of 20-bar average">
+                                            Min Ratio
+                                            <input type="number" id="bt-vol-ratio" value="1.3" min="1.0" max="3.0" step="0.1" class="bt-param-input" style="width:46px;" />
+                                        </label>
+                                    </div>
                                 </div>
 
-                                <div style="background:var(--bg-stat);border:1px solid var(--border-color);border-radius:8px;padding:9px 12px;display:flex;align-items:center;gap:8px;">
-                                    <label class="strategy-toggle"><input type="checkbox" id="bt-use-engulfing" checked /><span class="strategy-slider"></span></label>
-                                    <div><div style="font-family:var(--font-mono);font-size:11px;font-weight:600;color:var(--text-primary);">Engulfing <span style="font-size:10px;color:var(--accent-green);background:rgba(74,222,128,0.1);padding:1px 4px;border-radius:8px;">+1</span></div><div style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted);">Body swallows previous body</div></div>
+                                <!-- Signal 6: Engulfing -->
+                                <div class="bt-signal-card active" id="card-engulfing">
+                                    <div class="bt-signal-header">
+                                        <label class="strategy-toggle">
+                                            <input type="checkbox" id="bt-use-engulfing" checked onchange="btUpdateCard(this,'card-engulfing')" />
+                                            <span class="strategy-slider"></span>
+                                        </label>
+                                        <div>
+                                            <div class="bt-signal-name">Engulfing Pattern <span class="bt-signal-badge">+1</span></div>
+                                            <div class="bt-signal-desc">Candle body fully swallows previous body — strongest 2-bar reversal</div>
+                                        </div>
+                                    </div>
+                                    <div class="bt-signal-params" style="opacity:0.5;font-size:10px;color:var(--text-muted);padding-left:2px;">No extra parameters</div>
                                 </div>
 
-                                <div style="background:var(--bg-stat);border:1px solid var(--border-color);border-radius:8px;padding:9px 12px;display:flex;align-items:center;gap:8px;">
-                                    <label class="strategy-toggle"><input type="checkbox" id="bt-mean-rev-boost" checked /><span class="strategy-slider"></span></label>
-                                    <div><div style="font-family:var(--font-mono);font-size:11px;font-weight:600;color:var(--text-primary);">Mean Rev Boost <span style="font-size:10px;color:var(--accent-green);background:rgba(74,222,128,0.1);padding:1px 4px;border-radius:8px;">+1 opp</span></div><div style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted);">Boost opposite on streak</div></div>
+                                <!-- Signal 7: Mean Rev Boost -->
+                                <div class="bt-signal-card active" id="card-meanrev">
+                                    <div class="bt-signal-header">
+                                        <label class="strategy-toggle">
+                                            <input type="checkbox" id="bt-mean-rev-boost" checked onchange="btUpdateCard(this,'card-meanrev')" />
+                                            <span class="strategy-slider"></span>
+                                        </label>
+                                        <div>
+                                            <div class="bt-signal-name">Mean Rev Boost <span class="bt-signal-badge">+1 opp</span></div>
+                                            <div class="bt-signal-desc">After N-candle streak: penalize same dir AND boost opposite</div>
+                                        </div>
+                                    </div>
+                                    <div class="bt-signal-params">
+                                        <label class="bt-param-label" title="Consecutive same-color candles before mean reversion triggers">
+                                            Streak ≥
+                                            <input type="number" id="bt-consec" value="4" min="2" max="10" step="1" class="bt-param-input" style="width:38px;" />
+                                        </label>
+                                    </div>
                                 </div>
 
                             </div>
@@ -4902,6 +5060,54 @@
                 });
             }
 
+            // Signal card helpers
+            function btUpdateCard(checkbox, cardId) {
+                const card = document.getElementById(cardId);
+                if (!card) return;
+                if (checkbox.checked) {
+                    card.classList.add("active");
+                    card.classList.remove("inactive");
+                } else {
+                    card.classList.remove("active");
+                    card.classList.add("inactive");
+                }
+                btUpdateActiveCount();
+            }
+
+            function btUpdateActiveCount() {
+                const toggles = ["bt-use-close-pos","bt-use-wick","bt-use-body","bt-use-rsi5","bt-use-volume","bt-use-engulfing","bt-mean-rev-boost"];
+                const active = toggles.filter(id => {
+                    const el = document.getElementById(id);
+                    return el && el.checked;
+                }).length;
+                const countEl = document.getElementById("bt-active-count");
+                if (countEl) countEl.textContent = `${active} of 7 active`;
+            }
+
+            function btSetAllSignals(state) {
+                const map = [
+                    ["bt-use-close-pos","card-close-pos"],
+                    ["bt-use-wick","card-wick"],
+                    ["bt-use-body","card-body"],
+                    ["bt-use-rsi5","card-rsi5"],
+                    ["bt-use-volume","card-volume"],
+                    ["bt-use-engulfing","card-engulfing"],
+                    ["bt-mean-rev-boost","card-meanrev"],
+                ];
+                map.forEach(([toggleId, cardId]) => {
+                    const el = document.getElementById(toggleId);
+                    if (el) {
+                        el.checked = state;
+                        btUpdateCard(el, cardId);
+                    }
+                });
+            }
+
+            // Initialize card states on page load
+            document.addEventListener("DOMContentLoaded", () => {
+                btSetAllSignals(true);
+            });
+
             async function btRun() {
                 const btn = document.getElementById("bt-run-btn");
                 btn.textContent = "⟳ Running...";
@@ -4934,7 +5140,7 @@
                     body_ratio_min: parseFloat(document.getElementById("bt-body-ratio").value || "0.55"),
                     doji_threshold: parseFloat(document.getElementById("bt-doji").value || "0.15"),
                     volume_ratio_min: parseFloat(document.getElementById("bt-vol-ratio").value || "1.3"),
-                    wick_ratio_min: 0.3,
+                    wick_ratio_min: parseFloat(document.getElementById("bt-wick-ratio").value || "0.3"),
                     consecutive_penalty: parseInt(document.getElementById("bt-consec").value || "4"),
                     use_close_position: document.getElementById("bt-use-close-pos").checked,
                     use_wick_rejection: document.getElementById("bt-use-wick").checked,
