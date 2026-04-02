@@ -410,6 +410,22 @@ async def get_trading_status():
     }
 
 
+@app.post("/api/trading/live_mode")
+async def set_live_trading(enabled: bool):
+    """
+    Toggle live trading mode at runtime without restarting.
+    When disabled, orders are simulated locally (paper trading).
+    When enabled, real orders are placed on Kalshi.
+    """
+    global LIVE_TRADING_ENABLED
+    LIVE_TRADING_ENABLED = enabled
+    bot_manager.set_kalshi_client(kalshi_feed.client, enable_live_trading=enabled)
+    return {
+        "live_trading_enabled": enabled,
+        "message": f"Live trading {'ENABLED — real orders will be placed' if enabled else 'DISABLED — paper trading mode'}"
+    }
+
+
 @app.post("/api/trading/auto_trade")
 async def toggle_auto_trade(enabled: bool):
     """

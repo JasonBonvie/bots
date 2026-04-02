@@ -4260,60 +4260,89 @@
                 }
             }
 
+            async function toggleLiveTrading() {
+                const toggle = document.getElementById("liveTradingToggle");
+                const newState = toggle.checked;
+
+                if (newState) {
+                    const confirmed = confirm(
+                        "⚠️ Enable LIVE TRADING?\n\nReal orders will be placed on Kalshi with real money.\n\nAre you sure?"
+                    );
+                    if (!confirmed) {
+                        toggle.checked = false;
+                        return;
+                    }
+                }
+
+                try {
+                    const res = await fetch(`/api/trading/live_mode?enabled=${newState}`, { method: "POST" });
+                    const data = await res.json();
+                    isLiveTradingEnabled = data.live_trading_enabled;
+                    updateTradingModeBanner({ live_trading_enabled: isLiveTradingEnabled });
+                } catch (e) {
+                    console.error("Failed to toggle live trading:", e);
+                    toggle.checked = !newState; // revert on error
+                }
+            }
+
             function updateTradingModeBanner(status) {
                 const banner = document.getElementById("tradingModeBanner");
-                const statusBadge =
-                    document.getElementById("tradingModeStatus");
                 const syncAllBtn = document.getElementById("syncAllBtn");
+                const isLive = status.live_trading_enabled;
 
-                // Show/hide sync button based on trading mode
-                if (syncAllBtn) {
-                    syncAllBtn.style.display = status.live_trading_enabled
-                        ? "block"
-                        : "none";
-                }
+                // Sync the toggle state
+                const toggle = document.getElementById("liveTradingToggle");
+                if (toggle) toggle.checked = isLive;
 
-                if (status.live_trading_enabled) {
-                    banner.style.background = "var(--accent-red-dim)";
-                    banner.style.borderColor = "var(--accent-red)";
-                    banner.innerHTML = `
-                        <div style="display: flex; align-items: center; gap: 10px;">
-                            <span style="font-size: 16px;">⚠️</span>
-                            <div>
-                                <div style="font-weight: 600; color: var(--accent-red);">LIVE TRADING ENABLED</div>
-                                <div style="color: var(--text-muted); font-size: 11px;">Real orders are being placed on Kalshi. Be careful!</div>
+                // Show/hide sync button
+                if (syncAllBtn) syncAllBtn.style.display = isLive ? "block" : "none";
+
+                banner.style.background = isLive ? "var(--accent-red-dim)" : "var(--accent-amber-dim)";
+                banner.style.borderColor = isLive ? "var(--accent-red)" : "var(--accent-amber)";
+
+                banner.innerHTML = `
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <span style="font-size: 16px;">${isLive ? "⚠️" : "📝"}</span>
+                        <div>
+                            <div style="font-weight: 600; color: ${isLive ? "var(--accent-red)" : "var(--accent-amber)"};">
+                                ${isLive ? "LIVE TRADING ENABLED" : "PAPER TRADING MODE"}
+                            </div>
+                            <div style="color: var(--text-muted); font-size: 11px;">
+                                ${isLive ? "Real orders are being placed on Kalshi. Be careful!" : "Orders are simulated locally. Toggle to go live."}
                             </div>
                         </div>
-                        <div style="
-                            padding: 4px 12px;
-                            border-radius: 4px;
-                            font-weight: 600;
-                            font-size: 11px;
-                            background: var(--accent-red);
-                            color: #fff;
-                        ">LIVE</div>
-                    `;
-                } else {
-                    banner.style.background = "var(--accent-amber-dim)";
-                    banner.style.borderColor = "var(--accent-amber)";
-                    banner.innerHTML = `
-                        <div style="display: flex; align-items: center; gap: 10px;">
-                            <span style="font-size: 16px;">📝</span>
-                            <div>
-                                <div style="font-weight: 600; color: var(--accent-amber);">PAPER TRADING MODE</div>
-                                <div style="color: var(--text-muted); font-size: 11px;">Orders are simulated locally. Set KALSHI_LIVE_TRADING=true to enable real orders.</div>
-                            </div>
-                        </div>
-                        <div style="
-                            padding: 4px 12px;
-                            border-radius: 4px;
-                            font-weight: 600;
-                            font-size: 11px;
-                            background: var(--accent-amber);
-                            color: #000;
-                        ">PAPER</div>
-                    `;
-                }
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <span style="font-family: var(--font-mono); font-size: 11px; color: var(--text-muted);">
+                            ${isLive ? "LIVE" : "PAPER"}
+                        </span>
+                        <label style="position: relative; display: inline-block; width: 48px; height: 26px; cursor: pointer;">
+                            <input
+                                type="checkbox"
+                                id="liveTradingToggle"
+                                ${isLive ? "checked" : ""}
+                                onchange="toggleLiveTrading()"
+                                style="opacity: 0; width: 0; height: 0; position: absolute;"
+                            />
+                            <span style="
+                                position: absolute; inset: 0;
+                                background: ${isLive ? "var(--accent-red)" : "var(--border-color)"};
+                                border-radius: 26px;
+                                transition: background 0.2s;
+                            ">
+                                <span style="
+                                    position: absolute;
+                                    height: 20px; width: 20px;
+                                    left: ${isLive ? "24px" : "3px"};
+                                    top: 3px;
+                                    background: white;
+                                    border-radius: 50%;
+                                    transition: left 0.2s;
+                                "></span>
+                            </span>
+                        </label>
+                    </div>
+                `;
             }
 
             async function fetchLogs() {
