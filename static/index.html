@@ -1795,6 +1795,31 @@
                                 </div>
                                 <div style="display:flex;flex-direction:column;gap:10px;">
 
+                                    <!-- Signal 1: Close Position -->
+                                    <div style="background:var(--bg-stat);border:1px solid var(--border-color);border-radius:8px;padding:10px 14px;display:flex;align-items:center;gap:12px;">
+                                        <label class="strategy-toggle"><input type="checkbox" id="cfg_use_close_position" checked /><span class="strategy-slider"></span></label>
+                                        <div><div style="font-family:var(--font-mono);font-size:12px;font-weight:600;color:var(--text-primary);">Close Position</div><div style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted);">Where price closed within candle range (top = bull, bottom = bear)</div></div>
+                                    </div>
+                                    <!-- Signal 2: Wick Rejection -->
+                                    <div style="background:var(--bg-stat);border:1px solid var(--border-color);border-radius:8px;padding:10px 14px;display:flex;align-items:center;gap:12px;">
+                                        <label class="strategy-toggle"><input type="checkbox" id="cfg_use_wick_rejection" checked /><span class="strategy-slider"></span></label>
+                                        <div><div style="font-family:var(--font-mono);font-size:12px;font-weight:600;color:var(--text-primary);">Wick Rejection</div><div style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted);">Long wick against direction signals continuation or reversal</div></div>
+                                    </div>
+                                    <!-- Signal 3: Body Strength -->
+                                    <div style="background:var(--bg-stat);border:1px solid var(--border-color);border-radius:8px;padding:10px 14px;display:flex;align-items:center;gap:12px;">
+                                        <label class="strategy-toggle"><input type="checkbox" id="cfg_use_body_strength" checked /><span class="strategy-slider"></span></label>
+                                        <div><div style="font-family:var(--font-mono);font-size:12px;font-weight:600;color:var(--text-primary);">Body Strength</div><div style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted);">Strong full-body candle signals conviction in direction</div></div>
+                                    </div>
+                                    <!-- Signal 4: RSI(5) -->
+                                    <div style="background:var(--bg-stat);border:1px solid var(--border-color);border-radius:8px;padding:10px 14px;display:flex;align-items:center;gap:12px;">
+                                        <label class="strategy-toggle"><input type="checkbox" id="cfg_use_rsi5" checked /><span class="strategy-slider"></span></label>
+                                        <div><div style="font-family:var(--font-mono);font-size:12px;font-weight:600;color:var(--text-primary);">RSI(5)</div><div style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted);">Short-period momentum: &gt;55 bull, &lt;45 bear</div></div>
+                                    </div>
+                                    <!-- Signal 5: Volume Confirm -->
+                                    <div style="background:var(--bg-stat);border:1px solid var(--border-color);border-radius:8px;padding:10px 14px;display:flex;align-items:center;gap:12px;">
+                                        <label class="strategy-toggle"><input type="checkbox" id="cfg_use_volume_confirm" checked /><span class="strategy-slider"></span></label>
+                                        <div><div style="font-family:var(--font-mono);font-size:12px;font-weight:600;color:var(--text-primary);">Volume Confirm</div><div style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted);">High volume in candle direction adds conviction</div></div>
+                                    </div>
                                     <!-- Engulfing Pattern Card -->
                                     <div style="background:var(--bg-stat);border:1px solid var(--border-color);border-radius:8px;padding:12px 14px;display:flex;align-items:flex-start;gap:12px;">
                                         <div style="padding-top:2px;">
@@ -2818,37 +2843,42 @@
 
                         <!-- Strategy Modules (Backtest) -->
                         <div>
-                            <div style="font-family:var(--font-mono);font-size:11px;color:var(--accent-cyan,#5eead4);margin-bottom:8px;font-weight:600;letter-spacing:0.05em;">STRATEGIES</div>
-                            <div style="display:flex;gap:10px;flex-wrap:wrap;">
+                            <div style="font-family:var(--font-mono);font-size:11px;color:var(--accent-cyan,#5eead4);margin-bottom:10px;font-weight:600;letter-spacing:0.05em;">SIGNALS — toggle to isolate or combine</div>
+                            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:8px;">
 
-                                <!-- Engulfing -->
-                                <div style="background:var(--bg-stat);border:1px solid var(--border-color);border-radius:8px;padding:10px 14px;display:flex;align-items:center;gap:10px;min-width:200px;">
-                                    <label class="strategy-toggle" style="flex-shrink:0;">
-                                        <input type="checkbox" id="bt-use-engulfing" checked />
-                                        <span class="strategy-slider"></span>
-                                    </label>
-                                    <div>
-                                        <div style="font-family:var(--font-mono);font-size:11px;font-weight:600;color:var(--text-primary);">
-                                            Engulfing Pattern
-                                            <span style="font-size:10px;color:var(--accent-green);background:rgba(74,222,128,0.1);padding:1px 5px;border-radius:8px;margin-left:4px;">+1</span>
-                                        </div>
-                                        <div style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted);margin-top:2px;">Body fully swallows previous candle</div>
-                                    </div>
+                                <div style="background:var(--bg-stat);border:1px solid var(--border-color);border-radius:8px;padding:9px 12px;display:flex;align-items:center;gap:8px;">
+                                    <label class="strategy-toggle"><input type="checkbox" id="bt-use-close-pos" checked /><span class="strategy-slider"></span></label>
+                                    <div><div style="font-family:var(--font-mono);font-size:11px;font-weight:600;color:var(--text-primary);">Close Position</div><div style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted);">Where price closed in range</div></div>
                                 </div>
 
-                                <!-- Mean Reversion Boost -->
-                                <div style="background:var(--bg-stat);border:1px solid var(--border-color);border-radius:8px;padding:10px 14px;display:flex;align-items:center;gap:10px;min-width:200px;">
-                                    <label class="strategy-toggle" style="flex-shrink:0;">
-                                        <input type="checkbox" id="bt-mean-rev-boost" checked />
-                                        <span class="strategy-slider"></span>
-                                    </label>
-                                    <div>
-                                        <div style="font-family:var(--font-mono);font-size:11px;font-weight:600;color:var(--text-primary);">
-                                            Mean Rev Boost
-                                            <span style="font-size:10px;color:var(--accent-green);background:rgba(74,222,128,0.1);padding:1px 5px;border-radius:8px;margin-left:4px;">+1 opp</span>
-                                        </div>
-                                        <div style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted);margin-top:2px;">Boost opposite on streak (not just penalty)</div>
-                                    </div>
+                                <div style="background:var(--bg-stat);border:1px solid var(--border-color);border-radius:8px;padding:9px 12px;display:flex;align-items:center;gap:8px;">
+                                    <label class="strategy-toggle"><input type="checkbox" id="bt-use-wick" checked /><span class="strategy-slider"></span></label>
+                                    <div><div style="font-family:var(--font-mono);font-size:11px;font-weight:600;color:var(--text-primary);">Wick Rejection</div><div style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted);">Long wick signals reversal</div></div>
+                                </div>
+
+                                <div style="background:var(--bg-stat);border:1px solid var(--border-color);border-radius:8px;padding:9px 12px;display:flex;align-items:center;gap:8px;">
+                                    <label class="strategy-toggle"><input type="checkbox" id="bt-use-body" checked /><span class="strategy-slider"></span></label>
+                                    <div><div style="font-family:var(--font-mono);font-size:11px;font-weight:600;color:var(--text-primary);">Body Strength</div><div style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted);">Strong body = conviction</div></div>
+                                </div>
+
+                                <div style="background:var(--bg-stat);border:1px solid var(--border-color);border-radius:8px;padding:9px 12px;display:flex;align-items:center;gap:8px;">
+                                    <label class="strategy-toggle"><input type="checkbox" id="bt-use-rsi5" checked /><span class="strategy-slider"></span></label>
+                                    <div><div style="font-family:var(--font-mono);font-size:11px;font-weight:600;color:var(--text-primary);">RSI(5)</div><div style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted);">Short-period momentum</div></div>
+                                </div>
+
+                                <div style="background:var(--bg-stat);border:1px solid var(--border-color);border-radius:8px;padding:9px 12px;display:flex;align-items:center;gap:8px;">
+                                    <label class="strategy-toggle"><input type="checkbox" id="bt-use-volume" checked /><span class="strategy-slider"></span></label>
+                                    <div><div style="font-family:var(--font-mono);font-size:11px;font-weight:600;color:var(--text-primary);">Volume Confirm</div><div style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted);">High vol in candle direction</div></div>
+                                </div>
+
+                                <div style="background:var(--bg-stat);border:1px solid var(--border-color);border-radius:8px;padding:9px 12px;display:flex;align-items:center;gap:8px;">
+                                    <label class="strategy-toggle"><input type="checkbox" id="bt-use-engulfing" checked /><span class="strategy-slider"></span></label>
+                                    <div><div style="font-family:var(--font-mono);font-size:11px;font-weight:600;color:var(--text-primary);">Engulfing <span style="font-size:10px;color:var(--accent-green);background:rgba(74,222,128,0.1);padding:1px 4px;border-radius:8px;">+1</span></div><div style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted);">Body swallows previous body</div></div>
+                                </div>
+
+                                <div style="background:var(--bg-stat);border:1px solid var(--border-color);border-radius:8px;padding:9px 12px;display:flex;align-items:center;gap:8px;">
+                                    <label class="strategy-toggle"><input type="checkbox" id="bt-mean-rev-boost" checked /><span class="strategy-slider"></span></label>
+                                    <div><div style="font-family:var(--font-mono);font-size:11px;font-weight:600;color:var(--text-primary);">Mean Rev Boost <span style="font-size:10px;color:var(--accent-green);background:rgba(74,222,128,0.1);padding:1px 4px;border-radius:8px;">+1 opp</span></div><div style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted);">Boost opposite on streak</div></div>
                                 </div>
 
                             </div>
@@ -3867,6 +3897,26 @@
                                         <div style="font-family:var(--font-mono);font-size:10px;font-weight:600;color:var(--accent-cyan,#5eead4);margin-bottom:8px;letter-spacing:0.05em;">STRATEGY MODULES</div>
                                         <div style="display:flex;flex-direction:column;gap:7px;">
                                             <div style="background:rgba(255,255,255,0.03);border:1px solid var(--border-color);border-radius:6px;padding:8px 10px;display:flex;align-items:center;gap:8px;">
+                                                <label class="strategy-toggle"><input type="checkbox" id="bot-${bot.id}-use_close_position" ${bot.config?.use_close_position !== false ? "checked" : ""} /><span class="strategy-slider"></span></label>
+                                                <div><div style="font-size:11px;font-weight:600;color:var(--text-primary);">Close Position</div><div style="font-size:10px;color:var(--text-muted);">Where price closed in range</div></div>
+                                            </div>
+                                            <div style="background:rgba(255,255,255,0.03);border:1px solid var(--border-color);border-radius:6px;padding:8px 10px;display:flex;align-items:center;gap:8px;">
+                                                <label class="strategy-toggle"><input type="checkbox" id="bot-${bot.id}-use_wick_rejection" ${bot.config?.use_wick_rejection !== false ? "checked" : ""} /><span class="strategy-slider"></span></label>
+                                                <div><div style="font-size:11px;font-weight:600;color:var(--text-primary);">Wick Rejection</div><div style="font-size:10px;color:var(--text-muted);">Long wick continuation/reversal</div></div>
+                                            </div>
+                                            <div style="background:rgba(255,255,255,0.03);border:1px solid var(--border-color);border-radius:6px;padding:8px 10px;display:flex;align-items:center;gap:8px;">
+                                                <label class="strategy-toggle"><input type="checkbox" id="bot-${bot.id}-use_body_strength" ${bot.config?.use_body_strength !== false ? "checked" : ""} /><span class="strategy-slider"></span></label>
+                                                <div><div style="font-size:11px;font-weight:600;color:var(--text-primary);">Body Strength</div><div style="font-size:10px;color:var(--text-muted);">Strong body = conviction</div></div>
+                                            </div>
+                                            <div style="background:rgba(255,255,255,0.03);border:1px solid var(--border-color);border-radius:6px;padding:8px 10px;display:flex;align-items:center;gap:8px;">
+                                                <label class="strategy-toggle"><input type="checkbox" id="bot-${bot.id}-use_rsi5" ${bot.config?.use_rsi5 !== false ? "checked" : ""} /><span class="strategy-slider"></span></label>
+                                                <div><div style="font-size:11px;font-weight:600;color:var(--text-primary);">RSI(5)</div><div style="font-size:10px;color:var(--text-muted);">Short-period momentum</div></div>
+                                            </div>
+                                            <div style="background:rgba(255,255,255,0.03);border:1px solid var(--border-color);border-radius:6px;padding:8px 10px;display:flex;align-items:center;gap:8px;">
+                                                <label class="strategy-toggle"><input type="checkbox" id="bot-${bot.id}-use_volume_confirm" ${bot.config?.use_volume_confirm !== false ? "checked" : ""} /><span class="strategy-slider"></span></label>
+                                                <div><div style="font-size:11px;font-weight:600;color:var(--text-primary);">Volume Confirm</div><div style="font-size:10px;color:var(--text-muted);">High vol confirms direction</div></div>
+                                            </div>
+                                            <div style="background:rgba(255,255,255,0.03);border:1px solid var(--border-color);border-radius:6px;padding:8px 10px;display:flex;align-items:center;gap:8px;">
                                                 <label class="strategy-toggle">
                                                     <input type="checkbox" id="bot-${bot.id}-use_engulfing" ${bot.config?.use_engulfing !== false ? "checked" : ""} />
                                                     <span class="strategy-slider"></span>
@@ -4009,6 +4059,11 @@
                     ),
                     use_engulfing: document.getElementById("cfg_use_engulfing").checked,
                     mean_reversion_boost: document.getElementById("cfg_mean_reversion_boost").checked,
+                    use_close_position: document.getElementById("cfg_use_close_position").checked,
+                    use_wick_rejection: document.getElementById("cfg_use_wick_rejection").checked,
+                    use_body_strength: document.getElementById("cfg_use_body_strength").checked,
+                    use_rsi5: document.getElementById("cfg_use_rsi5").checked,
+                    use_volume_confirm: document.getElementById("cfg_use_volume_confirm").checked,
                     base_stake_cents: parseInt(
                         document.getElementById("cfg_base_stake").value,
                     ),
@@ -4058,6 +4113,11 @@
                     consecutive_penalty: parseInt(document.getElementById(`bot-${botId}-consecutive_penalty`).value),
                     use_engulfing: document.getElementById(`bot-${botId}-use_engulfing`) ? document.getElementById(`bot-${botId}-use_engulfing`).checked : true,
                     mean_reversion_boost: document.getElementById(`bot-${botId}-mean_reversion_boost`) ? document.getElementById(`bot-${botId}-mean_reversion_boost`).checked : true,
+                    use_close_position: document.getElementById(`bot-${botId}-use_close_position`) ? document.getElementById(`bot-${botId}-use_close_position`).checked : true,
+                    use_wick_rejection: document.getElementById(`bot-${botId}-use_wick_rejection`) ? document.getElementById(`bot-${botId}-use_wick_rejection`).checked : true,
+                    use_body_strength: document.getElementById(`bot-${botId}-use_body_strength`) ? document.getElementById(`bot-${botId}-use_body_strength`).checked : true,
+                    use_rsi5: document.getElementById(`bot-${botId}-use_rsi5`) ? document.getElementById(`bot-${botId}-use_rsi5`).checked : true,
+                    use_volume_confirm: document.getElementById(`bot-${botId}-use_volume_confirm`) ? document.getElementById(`bot-${botId}-use_volume_confirm`).checked : true,
                     base_stake_cents: parseInt(
                         document.getElementById(`bot-${botId}-base_stake`)
                             .value,
@@ -4876,6 +4936,11 @@
                     volume_ratio_min: parseFloat(document.getElementById("bt-vol-ratio").value || "1.3"),
                     wick_ratio_min: 0.3,
                     consecutive_penalty: parseInt(document.getElementById("bt-consec").value || "4"),
+                    use_close_position: document.getElementById("bt-use-close-pos").checked,
+                    use_wick_rejection: document.getElementById("bt-use-wick").checked,
+                    use_body_strength: document.getElementById("bt-use-body").checked,
+                    use_rsi5: document.getElementById("bt-use-rsi5").checked,
+                    use_volume_confirm: document.getElementById("bt-use-volume").checked,
                     use_engulfing: document.getElementById("bt-use-engulfing").checked,
                     mean_reversion_boost: document.getElementById("bt-mean-rev-boost").checked,
                 };

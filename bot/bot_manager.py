@@ -146,6 +146,11 @@ class BotConfig(BaseModel):
     volume_ratio_min: float = 1.3       # Volume ratio above this = high volume confirm
     wick_ratio_min: float = 0.3         # Minimum wick ratio to count as rejection
     consecutive_penalty: int = 4        # Consecutive same-color candles before mean reversion penalty
+    use_close_position: bool = True      # Signal 1: close position
+    use_wick_rejection: bool = True      # Signal 2: wick rejection
+    use_body_strength: bool = True       # Signal 3: body strength
+    use_rsi5: bool = True                # Signal 4: RSI(5)
+    use_volume_confirm: bool = True      # Signal 5: volume confirm
     use_engulfing: bool = True           # +1 when candle body fully swallows previous body
     mean_reversion_boost: bool = True    # +1 to opposite direction on streak (not just penalty)
     # Legacy filter toggles (kept for follow_candle mode compatibility)

@@ -232,35 +232,40 @@ class BacktestEngine:
         s_red = ~s_green
 
         # Signal 1: Close Position
-        sc_up += (df["s_close_position"] >= p.close_pos_bull).astype(float)
-        sc_dn += (df["s_close_position"] <= p.close_pos_bear).astype(float)
+        if p.use_close_position:
+            sc_up += (df["s_close_position"] >= p.close_pos_bull).astype(float)
+            sc_dn += (df["s_close_position"] <= p.close_pos_bear).astype(float)
 
         # Signal 2: Wick Rejection
-        wr_min = p.wick_ratio_min
-        wr_rev = wr_min + 0.1
-        anti = max(0.0, wr_min - 0.1)
-        green_clean = s_green & (df["s_lower_wick_ratio"] >= wr_min) & (df["s_upper_wick_ratio"] < anti)
-        red_clean   = s_red   & (df["s_upper_wick_ratio"] >= wr_min) & (df["s_lower_wick_ratio"] < anti)
-        green_rev   = s_green & (df["s_upper_wick_ratio"] >= wr_rev)
-        red_rev     = s_red   & (df["s_lower_wick_ratio"] >= wr_rev)
-        sc_up += green_clean.astype(float) + red_rev.astype(float)
-        sc_dn += red_clean.astype(float) + green_rev.astype(float)
+        if p.use_wick_rejection:
+            wr_min = p.wick_ratio_min
+            wr_rev = wr_min + 0.1
+            anti = max(0.0, wr_min - 0.1)
+            green_clean = s_green & (df["s_lower_wick_ratio"] >= wr_min) & (df["s_upper_wick_ratio"] < anti)
+            red_clean   = s_red   & (df["s_upper_wick_ratio"] >= wr_min) & (df["s_lower_wick_ratio"] < anti)
+            green_rev   = s_green & (df["s_upper_wick_ratio"] >= wr_rev)
+            red_rev     = s_red   & (df["s_lower_wick_ratio"] >= wr_rev)
+            sc_up += green_clean.astype(float) + red_rev.astype(float)
+            sc_dn += red_clean.astype(float) + green_rev.astype(float)
 
         # Signal 3: Body Strength
-        strong_green = s_green & (df["s_body_ratio"] >= p.body_ratio_min)
-        strong_red   = s_red   & (df["s_body_ratio"] >= p.body_ratio_min)
-        sc_up += strong_green.astype(float)
-        sc_dn += strong_red.astype(float)
+        if p.use_body_strength:
+            strong_green = s_green & (df["s_body_ratio"] >= p.body_ratio_min)
+            strong_red   = s_red   & (df["s_body_ratio"] >= p.body_ratio_min)
+            sc_up += strong_green.astype(float)
+            sc_dn += strong_red.astype(float)
 
         # Signal 4: RSI(5)
-        sc_up += (df["s_rsi5"] > p.rsi5_bull).astype(float)
-        sc_dn += (df["s_rsi5"] < p.rsi5_bear).astype(float)
+        if p.use_rsi5:
+            sc_up += (df["s_rsi5"] > p.rsi5_bull).astype(float)
+            sc_dn += (df["s_rsi5"] < p.rsi5_bear).astype(float)
 
         # Signal 5: Volume Confirmation
-        high_vol_green = (df["s_volume_ratio"] >= p.volume_ratio_min) & s_green
-        high_vol_red   = (df["s_volume_ratio"] >= p.volume_ratio_min) & s_red
-        sc_up += high_vol_green.astype(float)
-        sc_dn += high_vol_red.astype(float)
+        if p.use_volume_confirm:
+            high_vol_green = (df["s_volume_ratio"] >= p.volume_ratio_min) & s_green
+            high_vol_red   = (df["s_volume_ratio"] >= p.volume_ratio_min) & s_red
+            sc_up += high_vol_green.astype(float)
+            sc_dn += high_vol_red.astype(float)
 
         # Signal 6: Engulfing Pattern
         if p.use_engulfing:

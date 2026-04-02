@@ -101,6 +101,11 @@ def compute_signals(
     doji_threshold: float = 0.15,
     volume_ratio_min: float = 1.3,
     wick_ratio_min: float = 0.3,
+    use_close_position: bool = True,
+    use_wick_rejection: bool = True,
+    use_body_strength: bool = True,
+    use_rsi5: bool = True,
+    use_volume_confirm: bool = True,
     consecutive_penalty: int = 4,
     min_score: float = 3.0,
     use_engulfing: bool = True,
@@ -235,51 +240,56 @@ def compute_signals(
     filters_passed = 0
 
     # ── Signal 1: Close Position ──────────────────────────────────
-    if close_position >= close_pos_bull:
-        score_up += 1
-        filters_passed += 1
-    elif close_position <= close_pos_bear:
-        score_dn += 1
-        filters_passed += 1
+    if use_close_position:
+        if close_position >= close_pos_bull:
+            score_up += 1
+            filters_passed += 1
+        elif close_position <= close_pos_bear:
+            score_dn += 1
+            filters_passed += 1
 
     # ── Signal 2: Wick Rejection ──────────────────────────────────
-    wick_reversal = wick_ratio_min + 0.1  # e.g. 0.4 when wick_ratio_min=0.3
-    if candle_is_green and lower_wick_ratio >= wick_ratio_min and upper_wick_ratio < (wick_ratio_min - 0.1):
-        score_up += 1
-        filters_passed += 1
-    elif not candle_is_green and upper_wick_ratio >= wick_ratio_min and lower_wick_ratio < (wick_ratio_min - 0.1):
-        score_dn += 1
-        filters_passed += 1
-    elif candle_is_green and upper_wick_ratio >= wick_reversal:
-        score_dn += 1
-    elif not candle_is_green and lower_wick_ratio >= wick_reversal:
-        score_up += 1
+    if use_wick_rejection:
+        wick_reversal = wick_ratio_min + 0.1  # e.g. 0.4 when wick_ratio_min=0.3
+        if candle_is_green and lower_wick_ratio >= wick_ratio_min and upper_wick_ratio < (wick_ratio_min - 0.1):
+            score_up += 1
+            filters_passed += 1
+        elif not candle_is_green and upper_wick_ratio >= wick_ratio_min and lower_wick_ratio < (wick_ratio_min - 0.1):
+            score_dn += 1
+            filters_passed += 1
+        elif candle_is_green and upper_wick_ratio >= wick_reversal:
+            score_dn += 1
+        elif not candle_is_green and lower_wick_ratio >= wick_reversal:
+            score_up += 1
 
     # ── Signal 3: Body Strength ───────────────────────────────────
-    if body_ratio >= body_ratio_min:
-        if candle_is_green:
-            score_up += 1
-            filters_passed += 1
-        else:
-            score_dn += 1
-            filters_passed += 1
+    if use_body_strength:
+        if body_ratio >= body_ratio_min:
+            if candle_is_green:
+                score_up += 1
+                filters_passed += 1
+            else:
+                score_dn += 1
+                filters_passed += 1
 
     # ── Signal 4: RSI(5) Short Momentum ──────────────────────────
-    if rsi5 > rsi5_bull:
-        score_up += 1
-        filters_passed += 1
-    elif rsi5 < rsi5_bear:
-        score_dn += 1
-        filters_passed += 1
-
-    # ── Signal 5: Volume Confirmation ────────────────────────────
-    if volume_ratio >= volume_ratio_min:
-        if candle_is_green:
+    if use_rsi5:
+        if rsi5 > rsi5_bull:
             score_up += 1
             filters_passed += 1
-        else:
+        elif rsi5 < rsi5_bear:
             score_dn += 1
             filters_passed += 1
+
+    # ── Signal 5: Volume Confirmation ────────────────────────────
+    if use_volume_confirm:
+        if volume_ratio >= volume_ratio_min:
+            if candle_is_green:
+                score_up += 1
+                filters_passed += 1
+            else:
+                score_dn += 1
+                filters_passed += 1
 
     # ── Signal 6: Engulfing Pattern ──────────────────────────────────
     engulfing_signal = None
@@ -360,7 +370,7 @@ def compute_signals(
         direction=direction,
         confidence=confidence,
         filters_passed=filters_passed,
-        filters_total=6 if use_engulfing else 5,
+        filters_total=sum([use_close_position, use_wick_rejection, use_body_strength, use_rsi5, use_volume_confirm, use_engulfing]),
         rsi_filter=rsi_filter,
         macd_filter=macd_filter,
         volume_filter=volume_filter,

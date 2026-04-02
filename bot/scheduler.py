@@ -143,6 +143,11 @@ class SignalScheduler:
                     "min_score": cfg.min_score,
                     "use_engulfing": cfg.use_engulfing,
                     "mean_reversion_boost": cfg.mean_reversion_boost,
+                    "use_close_position": cfg.use_close_position,
+                    "use_wick_rejection": cfg.use_wick_rejection,
+                    "use_body_strength": cfg.use_body_strength,
+                    "use_rsi5": cfg.use_rsi5,
+                    "use_volume_confirm": cfg.use_volume_confirm,
                 }
 
             import functools
