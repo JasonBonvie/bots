@@ -17,6 +17,7 @@ import pandas_ta as ta
 from .models import (
     BacktestParams,
     BacktestResult,
+    DrawdownPoint,
     EquityPoint,
     FilterStats,
     TradeRecord,
@@ -589,18 +590,83 @@ class BacktestEngine:
         max_drawdown: int,
         duration: float,
     ) -> BacktestResult:
-        wins = sum(1 for t in trade_log if t.result == "WIN")
-        losses = sum(1 for t in trade_log if t.result == "LOSS")
+        wins   = [t for t in trade_log if t.result == "WIN"]
+        losses = [t for t in trade_log if t.result == "LOSS"]
         trades_taken = len(trade_log)
         total_pnl = sum(t.pnl_cents for t in trade_log)
-        win_rate = wins / trades_taken if trades_taken else 0.0
-        avg_pnl = total_pnl / trades_taken if trades_taken else 0.0
+        win_rate  = len(wins) / trades_taken if trades_taken else 0.0
+        avg_pnl   = total_pnl / trades_taken if trades_taken else 0.0
 
-        # Expectancy: avg P&L per dollar risked
         stake = self.params.stake_cents
         expectancy = avg_pnl / stake if stake > 0 else 0.0
 
-        # FilterStats
+        # ── Per-trade dollar returns (for Sharpe / Sortino) ───────────
+        trade_returns = np.array([
+            t.pnl_cents / (t.entry_price_cents * max(1, stake // max(1, t.entry_price_cents)))
+            for t in trade_log
+        ]) if trade_log else np.array([])
+
+        # ── Sharpe Ratio (annualised) ─────────────────────────────────
+        # Assume 96 trades/day possible (96 × 15-min candles per 24h).
+        # Actual trade frequency is win_rate × signals; annualise by scaling.
+        candles_per_year = 96 * 365
+        if len(trade_returns) >= 2:
+            mu  = float(np.mean(trade_returns))
+            std = float(np.std(trade_returns, ddof=1))
+            # trades_per_year estimate: extrapolate from backtest window
+            days = max(1, (self.params.end_ts - self.params.start_ts) / 86400)
+            tpy  = (trades_taken / days) * 365
+            ann  = float(np.sqrt(tpy))
+            sharpe  = round((mu / std) * ann, 3) if std > 0 else 0.0
+            neg     = trade_returns[trade_returns < 0]
+            downstd = float(np.std(neg, ddof=1)) if len(neg) >= 2 else std
+            sortino = round((mu / downstd) * ann, 3) if downstd > 0 else 0.0
+        else:
+            sharpe = sortino = 0.0
+
+        # ── Profit Factor ─────────────────────────────────────────────
+        gross_profit = sum(t.pnl_cents for t in wins)
+        gross_loss   = abs(sum(t.pnl_cents for t in losses))
+        profit_factor = round(gross_profit / gross_loss, 3) if gross_loss > 0 else float("inf") if gross_profit > 0 else 0.0
+
+        # ── Win / Loss averages & ratio ───────────────────────────────
+        avg_win  = round(gross_profit / len(wins),   2) if wins   else 0.0
+        avg_loss = round(gross_loss   / len(losses), 2) if losses else 0.0
+        wl_ratio = round(avg_win / avg_loss, 3) if avg_loss > 0 else float("inf") if avg_win > 0 else 0.0
+
+        # ── Streaks ───────────────────────────────────────────────────
+        max_cw = max_cl = cur_cw = cur_cl = 0
+        for t in trade_log:
+            if t.result == "WIN":
+                cur_cw += 1; cur_cl = 0
+                max_cw = max(max_cw, cur_cw)
+            else:
+                cur_cl += 1; cur_cw = 0
+                max_cl = max(max_cl, cur_cl)
+
+        # ── Drawdown series ───────────────────────────────────────────
+        peak = 0
+        drawdown_series: List[DrawdownPoint] = []
+        for ep in equity_curve:
+            peak = max(peak, ep.equity)
+            dd   = ep.equity - peak          # always <= 0
+            drawdown_series.append(DrawdownPoint(time=ep.time, drawdown=dd))
+
+        # ── Max drawdown % ────────────────────────────────────────────
+        max_dd_pct = round((max_drawdown / peak) * 100, 2) if peak > 0 else 0.0
+
+        # ── Calmar Ratio (annualised return / max drawdown) ───────────
+        if max_drawdown > 0 and trades_taken > 0:
+            days = max(1, (self.params.end_ts - self.params.start_ts) / 86400)
+            ann_return = (total_pnl / max(1, stake)) * (365 / days)
+            calmar = round(ann_return / (max_drawdown / max(1, stake)), 3)
+        else:
+            calmar = 0.0
+
+        # ── Recovery Factor ───────────────────────────────────────────
+        recovery = round(total_pnl / max_drawdown, 3) if max_drawdown > 0 else 0.0
+
+        # ── FilterStats ───────────────────────────────────────────────
         valid = df.dropna(subset=["_ema_label", "_rsi_label", "_macd_label", "_cp_label"])
         fs = FilterStats(
             total_candles=len(valid),
@@ -625,14 +691,26 @@ class BacktestEngine:
             total_candles=len(valid),
             total_signals=fs.signals_up + fs.signals_down,
             trades_taken=trades_taken,
-            wins=wins,
-            losses=losses,
+            wins=len(wins),
+            losses=len(losses),
             win_rate=round(win_rate, 4),
             total_pnl_cents=total_pnl,
             avg_pnl_cents=round(avg_pnl, 2),
             expectancy=round(expectancy, 4),
             max_drawdown_cents=max_drawdown,
+            max_drawdown_pct=max_dd_pct,
             equity_curve=equity_curve,
+            drawdown_series=drawdown_series,
             trade_log=trade_log,
             filter_stats=fs,
+            sharpe_ratio=sharpe,
+            sortino_ratio=sortino,
+            profit_factor=profit_factor if profit_factor != float("inf") else 999.0,
+            calmar_ratio=calmar,
+            recovery_factor=recovery,
+            max_consecutive_wins=max_cw,
+            max_consecutive_losses=max_cl,
+            avg_win_cents=avg_win,
+            avg_loss_cents=avg_loss,
+            win_loss_ratio=wl_ratio if wl_ratio != float("inf") else 999.0,
         )

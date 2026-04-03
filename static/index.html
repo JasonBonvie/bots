@@ -3265,23 +3265,72 @@
                 </div>
 
                 <!-- Summary stats (hidden until run) -->
-                <div id="bt-stats-row" style="display:none;display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;">
-                    <div class="stat-card">
-                        <div class="stat-label">TRADES</div>
-                        <div class="stat-value" id="bt-stat-trades">—</div>
+                <div id="bt-stats-row" style="display:none;gap:10px;margin-bottom:20px;flex-direction:column;">
+                    <!-- Row 1: Core performance -->
+                    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;">
+                        <div class="stat-card">
+                            <div class="stat-label">TRADES</div>
+                            <div class="stat-value" id="bt-stat-trades">—</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">WIN RATE</div>
+                            <div class="stat-value" id="bt-stat-winrate">—</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">TOTAL P&amp;L</div>
+                            <div class="stat-value" id="bt-stat-pnl">—</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">MAX DRAWDOWN</div>
+                            <div class="stat-value" id="bt-stat-maxdd">—</div>
+                            <div style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted);margin-top:2px;" id="bt-stat-maxdd-pct"></div>
+                        </div>
                     </div>
-                    <div class="stat-card">
-                        <div class="stat-label">WIN RATE</div>
-                        <div class="stat-value" id="bt-stat-winrate">—</div>
+                    <!-- Row 2: Risk-adjusted metrics -->
+                    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;">
+                        <div class="stat-card">
+                            <div class="stat-label">SHARPE RATIO</div>
+                            <div class="stat-value" id="bt-stat-sharpe">—</div>
+                            <div style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted);margin-top:2px;">annualized</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">SORTINO RATIO</div>
+                            <div class="stat-value" id="bt-stat-sortino">—</div>
+                            <div style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted);margin-top:2px;">downside-adj</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">PROFIT FACTOR</div>
+                            <div class="stat-value" id="bt-stat-pf">—</div>
+                            <div style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted);margin-top:2px;">gross wins / losses</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">CALMAR RATIO</div>
+                            <div class="stat-value" id="bt-stat-calmar">—</div>
+                            <div style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted);margin-top:2px;">ann. return / max dd</div>
+                        </div>
                     </div>
-                    <div class="stat-card">
-                        <div class="stat-label">TOTAL P&amp;L</div>
-                        <div class="stat-value" id="bt-stat-pnl">—</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-label">EXPECTANCY</div>
-                        <div class="stat-value" id="bt-stat-exp">—</div>
-                        <div style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted);margin-top:2px;">per $ risked</div>
+                    <!-- Row 3: Trade stats -->
+                    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;">
+                        <div class="stat-card">
+                            <div class="stat-label">EXPECTANCY</div>
+                            <div class="stat-value" id="bt-stat-exp">—</div>
+                            <div style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted);margin-top:2px;">per $ risked</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">AVG WIN / LOSS</div>
+                            <div class="stat-value" id="bt-stat-avgwl">—</div>
+                            <div style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted);margin-top:2px;" id="bt-stat-wlratio"></div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">MAX STREAK</div>
+                            <div class="stat-value" id="bt-stat-streak">—</div>
+                            <div style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted);margin-top:2px;" id="bt-stat-streak-sub"></div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label">RECOVERY FACTOR</div>
+                            <div class="stat-value" id="bt-stat-recovery">—</div>
+                            <div style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted);margin-top:2px;">pnl / max dd</div>
+                        </div>
                     </div>
                 </div>
 
@@ -3299,13 +3348,18 @@
                     </div>
                 </div>
 
-                <!-- Equity curve -->
+                <!-- Equity + Drawdown charts -->
                 <div id="bt-chart-wrap" class="card" style="display:none;">
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
                         <div class="card-title" style="margin-bottom:0;">Equity Curve</div>
                         <span id="bt-chart-status" style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted);"></span>
                     </div>
                     <div id="bt-equity-chart" style="height:200px;border:1px solid var(--border-color);border-radius:6px;"></div>
+                    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:16px;margin-bottom:8px;">
+                        <div style="font-family:var(--font-mono);font-size:11px;font-weight:600;color:var(--text-muted);letter-spacing:0.08em;">DRAWDOWN</div>
+                        <span id="bt-dd-peak" style="font-family:var(--font-mono);font-size:11px;color:var(--accent-red);"></span>
+                    </div>
+                    <div id="bt-drawdown-chart" style="height:120px;border:1px solid var(--border-color);border-radius:6px;"></div>
                 </div>
 
                 <!-- Signal & filter breakdown -->
@@ -5250,6 +5304,8 @@
             let btTradeLog = [];
             let btEquityChart = null;
             let btEquitySeries = null;
+            let btDrawdownChart = null;
+            let btDrawdownSeries = null;
 
             function btSetRange(days) {
                 btRangeDays = days;
@@ -5269,25 +5325,49 @@
             });
 
             function btInitChart() {
-                if (btEquityChart) return;
-                const container = document.getElementById("bt-equity-chart");
-                btEquityChart = LightweightCharts.createChart(container, {
-                    layout: { background: { color: "transparent" }, textColor: "var(--text-muted)" },
+                const eqContainer = document.getElementById("bt-equity-chart");
+                const ddContainer = document.getElementById("bt-drawdown-chart");
+
+                const sharedOpts = {
+                    layout: { background: { color: "transparent" }, textColor: "#6b7280" },
                     grid: {
-                        vertLines: { color: "rgba(255,255,255,0.05)" },
-                        horzLines: { color: "rgba(255,255,255,0.05)" },
+                        vertLines: { color: "rgba(255,255,255,0.04)" },
+                        horzLines: { color: "rgba(255,255,255,0.04)" },
                     },
-                    timeScale: { timeVisible: true, secondsVisible: false },
-                    height: 200,
-                });
-                btEquitySeries = btEquityChart.addLineSeries({
-                    color: "var(--accent-green)",
-                    lineWidth: 2,
-                    priceLineVisible: false,
-                });
-                window.addEventListener("resize", () => {
-                    if (btEquityChart) btEquityChart.applyOptions({ width: container.clientWidth });
-                });
+                    crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
+                    rightPriceScale: { borderColor: "rgba(255,255,255,0.08)" },
+                    timeScale: { borderColor: "rgba(255,255,255,0.08)", timeVisible: true, secondsVisible: false },
+                    handleScroll: false,
+                    handleScale: false,
+                };
+
+                if (!btEquityChart) {
+                    btEquityChart = LightweightCharts.createChart(eqContainer, { ...sharedOpts, height: 200 });
+                    btEquitySeries = btEquityChart.addAreaSeries({
+                        lineColor: "#22d3a0",
+                        topColor: "rgba(34,211,160,0.25)",
+                        bottomColor: "rgba(34,211,160,0.01)",
+                        lineWidth: 2,
+                        priceLineVisible: false,
+                        crosshairMarkerVisible: true,
+                    });
+                    window.addEventListener("resize", () => {
+                        if (btEquityChart) btEquityChart.applyOptions({ width: eqContainer.clientWidth });
+                        if (btDrawdownChart) btDrawdownChart.applyOptions({ width: ddContainer.clientWidth });
+                    });
+                }
+
+                if (!btDrawdownChart) {
+                    btDrawdownChart = LightweightCharts.createChart(ddContainer, { ...sharedOpts, height: 120 });
+                    btDrawdownSeries = btDrawdownChart.addAreaSeries({
+                        lineColor: "#f87171",
+                        topColor: "rgba(248,113,113,0.01)",
+                        bottomColor: "rgba(248,113,113,0.3)",
+                        lineWidth: 1,
+                        priceLineVisible: false,
+                        crosshairMarkerVisible: true,
+                    });
+                }
             }
 
             // Martingale backtest toggle
@@ -5494,28 +5574,85 @@
 
                 // Stats row
                 const statsRow = document.getElementById("bt-stats-row");
-                statsRow.style.display = "grid";
+                statsRow.style.display = "flex";
+
                 const winRate = (data.win_rate * 100).toFixed(1);
                 const pnl = (data.total_pnl_cents / 100);
                 const pnlSign = pnl >= 0 ? "+" : "";
-                const exp = data.expectancy >= 0 ? "+" + data.expectancy.toFixed(3) : data.expectancy.toFixed(3);
                 const pnlColor = pnl >= 0 ? "var(--accent-green)" : "var(--accent-red)";
                 const wrColor = data.win_rate >= 0.5 ? "var(--accent-green)" : "var(--accent-red)";
+
+                // Helper: color for ratio metrics
+                const ratioColor = v => v >= 1.5 ? "var(--accent-green)" : v >= 0.5 ? "var(--accent-amber)" : "var(--accent-red)";
                 const expColor = data.expectancy >= 0 ? "var(--accent-green)" : "var(--accent-red)";
 
+                // Row 1
                 document.getElementById("bt-stat-trades").textContent = data.trades_taken;
                 document.getElementById("bt-stat-trades").style.color = "var(--text-primary)";
+
                 document.getElementById("bt-stat-winrate").textContent = winRate + "%";
                 document.getElementById("bt-stat-winrate").style.color = wrColor;
+
                 document.getElementById("bt-stat-pnl").textContent = pnlSign + "$" + Math.abs(pnl).toFixed(2);
                 document.getElementById("bt-stat-pnl").style.color = pnlColor;
+
+                const maxDD = (data.max_drawdown_cents || 0) / 100;
+                const maxDDPct = (data.max_drawdown_pct || 0).toFixed(1);
+                const ddEl = document.getElementById("bt-stat-maxdd");
+                ddEl.textContent = maxDD > 0 ? "-$" + maxDD.toFixed(2) : "$0.00";
+                ddEl.style.color = maxDD > 0 ? "var(--accent-red)" : "var(--text-primary)";
+                document.getElementById("bt-stat-maxdd-pct").textContent = maxDD > 0 ? maxDDPct + "% of peak" : "";
+
+                // Row 2
+                const sharpe = (data.sharpe_ratio || 0).toFixed(2);
+                const sharpeEl = document.getElementById("bt-stat-sharpe");
+                sharpeEl.textContent = sharpe;
+                sharpeEl.style.color = ratioColor(data.sharpe_ratio || 0);
+
+                const sortino = (data.sortino_ratio || 0).toFixed(2);
+                const sortinoEl = document.getElementById("bt-stat-sortino");
+                sortinoEl.textContent = sortino;
+                sortinoEl.style.color = ratioColor(data.sortino_ratio || 0);
+
+                const pf = data.profit_factor || 0;
+                const pfEl = document.getElementById("bt-stat-pf");
+                pfEl.textContent = pf > 99 ? "∞" : pf.toFixed(2);
+                pfEl.style.color = ratioColor(pf);
+
+                const calmar = (data.calmar_ratio || 0).toFixed(2);
+                const calmarEl = document.getElementById("bt-stat-calmar");
+                calmarEl.textContent = calmar;
+                calmarEl.style.color = ratioColor(data.calmar_ratio || 0);
+
+                // Row 3
+                const exp = data.expectancy >= 0 ? "+" + data.expectancy.toFixed(3) : data.expectancy.toFixed(3);
                 document.getElementById("bt-stat-exp").textContent = exp;
                 document.getElementById("bt-stat-exp").style.color = expColor;
 
-                // Equity chart
+                const avgWin = (data.avg_win_cents || 0) / 100;
+                const avgLoss = (data.avg_loss_cents || 0) / 100;
+                const avgWLEl = document.getElementById("bt-stat-avgwl");
+                avgWLEl.innerHTML = `<span style="color:var(--accent-green)">+$${avgWin.toFixed(2)}</span> / <span style="color:var(--accent-red)">-$${Math.abs(avgLoss).toFixed(2)}</span>`;
+
+                const wlRatio = data.win_loss_ratio || 0;
+                document.getElementById("bt-stat-wlratio").textContent = `W/L ratio: ${wlRatio.toFixed(2)}x`;
+
+                const maxW = data.max_consecutive_wins || 0;
+                const maxL = data.max_consecutive_losses || 0;
+                const streakEl = document.getElementById("bt-stat-streak");
+                streakEl.innerHTML = `<span style="color:var(--accent-green)">${maxW}W</span> / <span style="color:var(--accent-red)">${maxL}L</span>`;
+                document.getElementById("bt-stat-streak-sub").textContent = `max consec. wins / losses`;
+
+                const recovery = data.recovery_factor || 0;
+                const recoveryEl = document.getElementById("bt-stat-recovery");
+                recoveryEl.textContent = recovery > 99 ? "∞" : recovery.toFixed(2);
+                recoveryEl.style.color = ratioColor(recovery);
+
+                // Equity + drawdown charts
                 const chartWrap = document.getElementById("bt-chart-wrap");
                 chartWrap.style.display = "";
                 btInitChart();
+
                 const equityData = (data.equity_curve || [])
                     .filter(p => p.equity !== undefined)
                     .map(p => ({ time: p.time, value: p.equity / 100 }));
@@ -5523,6 +5660,19 @@
                     btEquitySeries.setData(equityData);
                     btEquityChart.timeScale().fitContent();
                 }
+
+                const drawdownData = (data.drawdown_series || [])
+                    .filter(p => p.drawdown !== undefined)
+                    .map(p => ({ time: p.time, value: p.drawdown / 100 }));
+                if (drawdownData.length > 0) {
+                    btDrawdownSeries.setData(drawdownData);
+                    btDrawdownChart.timeScale().fitContent();
+                    const worstDD = Math.min(...drawdownData.map(p => p.value));
+                    document.getElementById("bt-dd-peak").textContent = `Worst: -$${Math.abs(worstDD).toFixed(2)}`;
+                } else {
+                    document.getElementById("bt-dd-peak").textContent = "";
+                }
+
                 document.getElementById("bt-chart-status").textContent =
                     `${data.total_candles} candles · ${data.duration_seconds}s`;
 

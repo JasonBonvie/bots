@@ -164,6 +164,12 @@ class EquityPoint(BaseModel):
     equity: int  # cumulative P&L in cents
 
 
+class DrawdownPoint(BaseModel):
+    """Single point on the drawdown curve (always <= 0)."""
+    time: int
+    drawdown: int  # cents below running peak, always <= 0
+
+
 class BacktestResult(BaseModel):
     """Full result of a backtest run."""
     params: BacktestParams
@@ -179,10 +185,24 @@ class BacktestResult(BaseModel):
     expectancy: float
     max_drawdown_cents: int
     equity_curve: List[EquityPoint]
+    drawdown_series: List[DrawdownPoint] = []
     trade_log: List[TradeRecord]
     filter_stats: FilterStats
-    error: Optional[str] = None
+    # Risk-adjusted performance metrics
+    sharpe_ratio: float = 0.0
+    sortino_ratio: float = 0.0
+    profit_factor: float = 0.0
+    calmar_ratio: float = 0.0
+    recovery_factor: float = 0.0
+    # Streak & breakdown
+    max_consecutive_wins: int = 0
+    max_consecutive_losses: int = 0
+    avg_win_cents: float = 0.0
+    avg_loss_cents: float = 0.0
+    win_loss_ratio: float = 0.0
+    max_drawdown_pct: float = 0.0
     # Limit order stats (only populated when use_limit_order=True)
     limit_signals: int = 0           # total signals that attempted limit orders
     limit_fills: int = 0             # signals where the limit order was filled
     limit_fill_rate: float = 0.0     # fills / signals
+    error: Optional[str] = None
