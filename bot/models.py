@@ -115,6 +115,10 @@ class BacktestParams(BaseModel):
     use_volume_confirm: bool = True      # signal 5
     use_engulfing: bool = True           # +1 when candle body fully swallows previous body
     mean_reversion_boost: bool = True    # add +1 to opposite direction on streak (not just penalty)
+    # Martingale simulation
+    use_martingale: bool = False             # double dollar stake after each loss
+    martingale_multiplier: float = 2.0       # stake multiplier per loss level
+    max_martingale_level: int = 5            # stop growing after this many consecutive losses
     require_prev_candle_match: bool = False  # only trade when signal matches prev candle
     # Legacy (kept for API compatibility, not used in scoring)
     require_ema: bool = False

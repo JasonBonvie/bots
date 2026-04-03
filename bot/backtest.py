@@ -311,6 +311,20 @@ class BacktestEngine:
         return df
 
     # ------------------------------------------------------------------
+    # Martingale stake helper
+    # ------------------------------------------------------------------
+
+    def _martingale_stake(self, base_cents: int, entry_cents: int, level: int) -> int:
+        """
+        Return number of contracts for this trade using the same dollar-doubling
+        logic as the live bot: multiply BASE DOLLAR STAKE by multiplier^level,
+        then convert to contracts via entry price.
+        """
+        p = self.params
+        dollar_stake = int(base_cents * (p.martingale_multiplier ** level))
+        return max(1, dollar_stake // max(1, entry_cents))
+
+    # ------------------------------------------------------------------
     # BTC-only mode
     # ------------------------------------------------------------------
 
@@ -336,6 +350,7 @@ class BacktestEngine:
         equity_curve: List[EquityPoint] = []
         peak_equity = 0
         max_drawdown = 0
+        martingale_level = 0  # tracks consecutive losses for martingale
 
         rows = df.reset_index()
         n = len(rows)
@@ -349,7 +364,7 @@ class BacktestEngine:
                 equity_curve.append(EquityPoint(time=ts_int, equity=equity))
                 continue
 
-            # Candle confirmation filter: only trade when signal matches previous candle color
+            # Candle confirmation filter
             if p.require_prev_candle_match:
                 prev_color = row.get("prev_candle_color", "NEUTRAL")
                 if direction == "UP" and prev_color != "GREEN":
@@ -361,13 +376,25 @@ class BacktestEngine:
 
             next_close = float(rows.iloc[i + 1]["close"])
             current_close = float(row["close"])
-
             won = (next_close > current_close) if direction == "UP" else (next_close < current_close)
 
             entry = min(99, p.entry_price_cents + p.slippage_cents)
             exit_price = 100 if won else 0
-            qty = max(1, p.stake_cents // entry)
+
+            # Martingale: double dollar stake each loss, same logic as live bot
+            if p.use_martingale and martingale_level > 0:
+                qty = self._martingale_stake(p.stake_cents, entry, martingale_level)
+            else:
+                qty = max(1, p.stake_cents // entry)
+
             pnl = (exit_price - entry) * qty
+
+            # Update martingale level for next trade
+            if p.use_martingale:
+                if won:
+                    martingale_level = 0
+                else:
+                    martingale_level = min(martingale_level + 1, p.max_martingale_level)
 
             equity += pnl
             peak_equity = max(peak_equity, equity)
@@ -437,6 +464,7 @@ class BacktestEngine:
         max_drawdown = 0
         limit_signals = 0
         limit_fills = 0
+        martingale_level = 0  # tracks consecutive losses
 
         rows = df.reset_index()
         for _, row in rows.iterrows():
@@ -450,7 +478,7 @@ class BacktestEngine:
                 equity_curve.append(EquityPoint(time=ts_int, equity=equity))
                 continue
 
-            # Candle confirmation filter: only trade when signal matches previous candle color
+            # Candle confirmation filter
             if p.require_prev_candle_match:
                 prev_color = row.get("prev_candle_color", "NEUTRAL")
                 if direction == "UP" and prev_color != "GREEN":
@@ -464,7 +492,6 @@ class BacktestEngine:
             ticker = market.get("ticker", "")
             market_result = market.get("result", "")  # "yes" or "no"
 
-            # Determine win: UP signal bets YES, DOWN signal bets NO
             if direction == "UP":
                 won = market_result == "yes"
             else:
@@ -477,7 +504,6 @@ class BacktestEngine:
                 limit_signals += 1
                 limit_price = p.limit_price_cents
 
-                # Check if ask dropped to our limit price within the fill window
                 filled = False
                 for c in candles[:p.limit_window_minutes]:
                     try:
@@ -508,13 +534,24 @@ class BacktestEngine:
                             entry = max(1, min(99, int(float(raw_ask) * 100)))
                     except (TypeError, ValueError):
                         pass
-
-                # Apply slippage (worsens entry price)
                 entry = min(99, entry + p.slippage_cents)
 
             exit_price = 100 if won else 0
-            qty = max(1, p.stake_cents // entry)
+
+            # Martingale: double dollar stake each loss, reset on win
+            if p.use_martingale and martingale_level > 0:
+                qty = self._martingale_stake(p.stake_cents, entry, martingale_level)
+            else:
+                qty = max(1, p.stake_cents // entry)
+
             pnl = (exit_price - entry) * qty
+
+            # Update martingale level for next trade
+            if p.use_martingale:
+                if won:
+                    martingale_level = 0
+                else:
+                    martingale_level = min(martingale_level + 1, p.max_martingale_level)
 
             equity += pnl
             peak_equity = max(peak_equity, equity)

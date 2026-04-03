@@ -2999,13 +2999,36 @@
                             </select>
                         </div>
 
-                        <!-- Stake -->
-                        <div>
-                            <div style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted);margin-bottom:6px;">STAKE / TRADE</div>
-                            <div style="display:flex;align-items:center;gap:4px;">
-                                <span style="color:var(--text-muted);font-size:13px;">$</span>
-                                <input type="number" id="bt-stake" value="1.00" min="0.01" step="0.01"
-                                    style="width:70px;padding:8px 10px;font-family:var(--font-mono);font-size:13px;background:var(--bg-stat);border:1px solid var(--border-color);border-radius:4px;color:var(--text-primary);" />
+                        <!-- Stake + Martingale -->
+                        <div style="display:flex;flex-direction:column;gap:8px;">
+                            <div>
+                                <div style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted);margin-bottom:6px;">STAKE / TRADE</div>
+                                <div style="display:flex;align-items:center;gap:4px;">
+                                    <span style="color:var(--text-muted);font-size:13px;">$</span>
+                                    <input type="number" id="bt-stake" value="1.00" min="0.01" step="0.01"
+                                        style="width:70px;padding:8px 10px;font-family:var(--font-mono);font-size:13px;background:var(--bg-stat);border:1px solid var(--border-color);border-radius:4px;color:var(--text-primary);" />
+                                </div>
+                            </div>
+                            <div style="background:var(--bg-stat);border:1px solid var(--border-color);border-radius:8px;padding:8px 10px;">
+                                <label style="display:flex;align-items:center;gap:7px;cursor:pointer;margin-bottom:6px;">
+                                    <input type="checkbox" id="bt-use-martingale" style="accent-color:var(--accent-amber);" onchange="btToggleMartingale()" />
+                                    <span style="font-family:var(--font-mono);font-size:11px;font-weight:600;color:var(--accent-amber);">🎰 Martingale</span>
+                                </label>
+                                <div id="bt-martingale-params" style="display:none;display:flex;flex-direction:column;gap:5px;">
+                                    <label style="display:flex;align-items:center;gap:5px;font-family:var(--font-mono);font-size:10px;color:var(--text-muted);">
+                                        Multiplier
+                                        <input type="number" id="bt-mg-mult" value="2.0" min="1.1" max="4.0" step="0.1"
+                                            style="width:48px;padding:3px 6px;font-family:var(--font-mono);font-size:11px;background:var(--bg-primary,#0d1117);border:1px solid var(--border-color);border-radius:4px;color:var(--text-primary);" />
+                                        <span class="info-icon" data-tip='{"title":"Martingale Multiplier","body":"Dollar stake is multiplied by this after each loss. 2.0 = double. Applied to the BASE STAKE, not contracts.","higher":"Faster stake growth. Recovers losses quicker but higher risk.","lower":"Slower growth. More conservative.","example":"$1 base, 2× mult: Loss 1=$2, Loss 2=$4, Loss 3=$8"}'>i</span>
+                                    </label>
+                                    <label style="display:flex;align-items:center;gap:5px;font-family:var(--font-mono);font-size:10px;color:var(--text-muted);">
+                                        Max Level
+                                        <input type="number" id="bt-mg-max" value="5" min="1" max="10" step="1"
+                                            style="width:40px;padding:3px 6px;font-family:var(--font-mono);font-size:11px;background:var(--bg-primary,#0d1117);border:1px solid var(--border-color);border-radius:4px;color:var(--text-primary);" />
+                                        <span class="info-icon" data-tip='{"title":"Max Martingale Level","body":"Stop doubling after this many consecutive losses. Caps the maximum stake to protect against catastrophic runs.","higher":"Allows deeper doubling. Higher max loss exposure.","lower":"Caps sooner. $1 base, 2×, max 3 = worst case $8/trade.","example":"Level 5 with 2×: worst trade = $1 × 2⁵ = $32"}'>i</span>
+                                    </label>
+                                    <div id="bt-mg-preview" style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted);margin-top:2px;"></div>
+                                </div>
                             </div>
                         </div>
 
@@ -5267,6 +5290,31 @@
                 });
             }
 
+            // Martingale backtest toggle
+            function btToggleMartingale() {
+                const on = document.getElementById("bt-use-martingale").checked;
+                const params = document.getElementById("bt-martingale-params");
+                params.style.display = on ? "flex" : "none";
+                btUpdateMgPreview();
+            }
+            function btUpdateMgPreview() {
+                const base = parseFloat(document.getElementById("bt-stake").value || "1");
+                const mult = parseFloat(document.getElementById("bt-mg-mult")?.value || "2");
+                const maxL = parseInt(document.getElementById("bt-mg-max")?.value || "5");
+                const preview = document.getElementById("bt-mg-preview");
+                if (!preview) return;
+                let rows = [];
+                for (let i = 0; i <= Math.min(maxL, 6); i++) {
+                    const stake = (base * Math.pow(mult, i)).toFixed(2);
+                    rows.push(`L${i}: $${stake}`);
+                }
+                preview.textContent = rows.join("  →  ");
+            }
+            // Update preview when inputs change
+            document.addEventListener("change", e => {
+                if (["bt-mg-mult","bt-mg-max","bt-stake"].includes(e.target?.id)) btUpdateMgPreview();
+            });
+
             // Signal card helpers
             function btUpdateCard(checkbox, cardId) {
                 const card = document.getElementById(cardId);
@@ -5403,6 +5451,9 @@
                     use_volume_confirm: document.getElementById("bt-use-volume").checked,
                     use_engulfing: document.getElementById("bt-use-engulfing").checked,
                     mean_reversion_boost: document.getElementById("bt-mean-rev-boost").checked,
+                    use_martingale: document.getElementById("bt-use-martingale").checked,
+                    martingale_multiplier: parseFloat(document.getElementById("bt-mg-mult").value || "2.0"),
+                    max_martingale_level: parseInt(document.getElementById("bt-mg-max").value || "5"),
                 };
 
                 try {
