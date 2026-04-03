@@ -639,6 +639,18 @@ async def stop_bot(bot_id: str):
     return bot.model_dump()
 
 
+@app.post("/api/bots/{bot_id}/reset_martingale")
+async def reset_martingale(bot_id: str):
+    """Reset martingale level to 0 for a bot."""
+    bot = bot_manager.bots.get(bot_id)
+    if not bot:
+        raise HTTPException(status_code=404, detail="Bot not found")
+    prev_level = bot.current_martingale_level
+    bot.current_martingale_level = 0
+    await bot_manager._save_bot_to_db(bot)
+    return {"bot_id": bot_id, "previous_level": prev_level, "current_level": 0}
+
+
 @app.get("/api/positions")
 async def get_positions(bot_id: str = None):
     """Get all open positions."""

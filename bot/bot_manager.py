@@ -1208,11 +1208,12 @@ class BotManager:
             # - DOWN signal → buy NO (betting BTC goes DOWN in next candle)
             side = PositionSide.YES if trade_direction == "UP" else PositionSide.NO
 
-            # Calculate stake based on martingale
-            stake = self._calculate_stake(bot)
-
             # Use bot's configured limit price if limit orders enabled
             entry_price = bot.config.limit_price_cents if bot.config.use_limit_orders else current_price_cents
+
+            # Calculate stake (contracts) — pass market price so dollar→contract
+            # conversion uses the actual entry price, not a hardcoded fallback
+            stake = self._calculate_stake(bot, market_price_cents=current_price_cents)
 
             position = await self.open_position(
                 bot_id=bot.id,
@@ -1347,30 +1348,41 @@ class BotManager:
             logger.debug(f"Bot {bot.name}: Score UP={score_up}, DN={score_dn}, min={config.min_score} → SKIP")
             return "SKIP"
 
-    def _calculate_stake(self, bot: Bot) -> int:
+    def _calculate_stake(self, bot: Bot, market_price_cents: int = 50) -> int:
         """
-        Calculate stake size (number of contracts) based on bot config.
+        Calculate stake in contracts, scaling the DOLLAR RISK by the martingale level.
 
-        If use_limit_orders is enabled, calculates contracts based on
-        base_stake_cents / limit_price_cents to risk the specified amount.
-        Otherwise, uses base_stake_cents / 100 as a simple contract count.
+        Martingale doubles the dollar amount risked per trade (not the contract count).
+        Example with base_stake=$1.00, multiplier=2.0, limit price=45¢:
+          Level 0: $1.00  → 100/45 = 2 contracts
+          Level 1: $2.00  → 200/45 = 4 contracts
+          Level 2: $4.00  → 400/45 = 8 contracts
+          Level 3: $8.00  → 800/45 = 17 contracts
+        max_position_size caps non-martingale trades; martingale is capped by
+        max_martingale_level (the natural growth ceiling).
         """
         config = bot.config
 
+        # Effective entry price per contract
         if config.use_limit_orders and config.limit_price_cents > 0:
-            # Calculate contracts to risk approximately base_stake_cents
-            # e.g., 100¢ stake / 45¢ per contract = 2 contracts
-            base_stake = max(1, config.base_stake_cents // config.limit_price_cents)
+            price = config.limit_price_cents
         else:
-            # Fallback: treat base_stake_cents as dollars (divide by 100)
-            base_stake = max(1, config.base_stake_cents // 100)
+            price = max(1, market_price_cents)
 
         if config.use_martingale and bot.current_martingale_level > 0:
+            # Double the DOLLAR stake at each level, then convert to contracts
             multiplier = config.martingale_multiplier ** bot.current_martingale_level
-            stake = int(base_stake * multiplier)
-            return min(stake, config.max_position_size)
+            stake_cents = int(config.base_stake_cents * multiplier)
+            contracts = max(1, stake_cents // price)
+            logger.info(
+                f"Martingale level {bot.current_martingale_level}: "
+                f"${stake_cents/100:.2f} stake → {contracts} contracts @ {price}¢"
+            )
+            return contracts
 
-        return min(base_stake, config.max_position_size)
+        # Base case: convert base dollar stake to contracts, respect max_position_size
+        contracts = max(1, config.base_stake_cents // price)
+        return min(contracts, config.max_position_size)
 
     async def sync_kalshi_positions(self) -> int:
         """
