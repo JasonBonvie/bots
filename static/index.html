@@ -2993,10 +2993,15 @@
                         <div>
                             <div style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted);margin-bottom:6px;">MIN SCORE</div>
                             <select id="bt-min-score" style="padding:8px 10px;font-family:var(--font-mono);font-size:13px;background:var(--bg-stat);border:1px solid var(--border-color);border-radius:4px;color:var(--text-primary);">
-                                <option value="2">2 / 4</option>
-                                <option value="3" selected>3 / 4</option>
-                                <option value="4">4 / 4</option>
+                                <option value="1">1</option>
+                                <option value="2">2</option>
+                                <option value="3" selected>3</option>
+                                <option value="4">4</option>
+                                <option value="5">5</option>
+                                <option value="6">6</option>
+                                <option value="7">7</option>
                             </select>
+                            <div id="bt-score-hint" style="font-family:var(--font-mono);font-size:10px;margin-top:4px;color:var(--text-muted);">max: 6 signals</div>
                         </div>
 
                         <!-- Stake + Martingale -->
@@ -5568,13 +5573,53 @@
             }
 
             function btUpdateActiveCount() {
-                const toggles = ["bt-use-close-pos","bt-use-wick","bt-use-body","bt-use-rsi5","bt-use-volume","bt-use-engulfing","bt-mean-rev-boost"];
-                const active = toggles.filter(id => {
+                // Direct scoring signals (each contributes +1 to score_up or score_dn)
+                const scoringSignals = ["bt-use-close-pos","bt-use-wick","bt-use-body","bt-use-rsi5","bt-use-volume","bt-use-engulfing"];
+                const allToggles = [...scoringSignals, "bt-mean-rev-boost"];
+
+                const activeScoring = scoringSignals.filter(id => {
                     const el = document.getElementById(id);
                     return el && el.checked;
                 }).length;
+                const mrbOn = document.getElementById("bt-mean-rev-boost")?.checked;
+                const totalActive = allToggles.filter(id => {
+                    const el = document.getElementById(id);
+                    return el && el.checked;
+                }).length;
+
+                // Max achievable score = active scoring signals + 1 if MRB is on
+                const maxScore = activeScoring + (mrbOn ? 1 : 0);
+
                 const countEl = document.getElementById("bt-active-count");
-                if (countEl) countEl.textContent = `${active} of 7 active`;
+                if (countEl) countEl.textContent = `${totalActive} of 7 active`;
+
+                // Update score options: only show 1..maxScore
+                const sel = document.getElementById("bt-min-score");
+                if (sel) {
+                    const cur = parseInt(sel.value);
+                    sel.innerHTML = "";
+                    for (let i = 1; i <= Math.max(maxScore, 1); i++) {
+                        const opt = document.createElement("option");
+                        opt.value = i;
+                        opt.textContent = `${i} / ${maxScore}`;
+                        if (i === Math.min(cur, maxScore)) opt.selected = true;
+                        sel.appendChild(opt);
+                    }
+                    // Clamp current value to valid range
+                    if (cur > maxScore) sel.value = maxScore;
+                }
+
+                // Score hint
+                const hint = document.getElementById("bt-score-hint");
+                if (hint) {
+                    if (maxScore === 0) {
+                        hint.textContent = "⚠ no signals active";
+                        hint.style.color = "var(--accent-red)";
+                    } else {
+                        hint.textContent = `max: ${maxScore} (${activeScoring} signals${mrbOn ? " + MRB" : ""})`;
+                        hint.style.color = "var(--text-muted)";
+                    }
+                }
             }
 
             function btSetAllSignals(state) {
