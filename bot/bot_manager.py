@@ -15,6 +15,8 @@ from pydantic import BaseModel, Field
 from enum import Enum
 import logging
 
+from .models import LimitTier
+
 if TYPE_CHECKING:
     from .kalshi_feed import KalshiClient
     from .database import Database
@@ -83,6 +85,10 @@ class Position(BaseModel):
     # Limit order expiry tracking
     limit_order_expiry: Optional[datetime] = None  # When the limit order expires
     is_limit_order: bool = False
+    # Ladder order tracking (one entry per tier, parallel to config.limit_ladder)
+    ladder_order_ids: List[str] = []      # Kalshi order IDs for each ladder tier
+    ladder_filled: List[bool] = []        # which tiers filled
+    ladder_fill_prices: List[int] = []    # actual fill price per tier (cents)
 
     def update_pnl(self, current_price_cents: int):
         """Update unrealized PnL based on current price."""
@@ -170,6 +176,7 @@ class BotConfig(BaseModel):
     use_limit_orders: bool = False  # Use limit orders instead of market orders
     limit_price_cents: int = 45  # Limit order price (1-99 cents)
     limit_order_expiry_seconds: int = 120  # 2 minutes (get filled quickly or cancel)
+    limit_ladder: List[LimitTier] = []  # additional limit tiers at lower prices
 
     # Risk management
     daily_loss_limit_cents: int = 10000  # $100 daily loss limit
@@ -789,6 +796,33 @@ class BotManager:
             if should_use_limit and bot_config.limit_order_expiry_seconds > 0:
                 position.limit_order_expiry = datetime.now(timezone.utc) + timedelta(seconds=bot_config.limit_order_expiry_seconds)
                 position.is_limit_order = True
+
+            # ── Limit ladder: place additional orders at lower prices ─────────
+            if should_use_limit and bot_config.limit_ladder:
+                position.ladder_order_ids = []
+                position.ladder_filled = [False] * len(bot_config.limit_ladder)
+                position.ladder_fill_prices = [0] * len(bot_config.limit_ladder)
+                for tier in bot_config.limit_ladder:
+                    tier_qty = max(1, int(tier.stake_dollars * 100) // max(1, tier.price_cents))
+                    tier_expiry_ts = int(datetime.now(timezone.utc).timestamp() + tier.window_minutes * 60)
+                    if self.is_live_trading:
+                        tier_result = await self._execute_kalshi_order(
+                            ticker=market_ticker,
+                            side=side.value,
+                            action="buy",
+                            count=tier_qty,
+                            price_cents=tier.price_cents,
+                            order_type="limit",
+                            expiration_ts=tier_expiry_ts
+                        )
+                        tier_order_id = tier_result.get("order_id", "") if tier_result and "error" not in tier_result else ""
+                        if tier_order_id:
+                            logger.info(f"Ladder tier {tier.price_cents}¢ order placed: {tier_order_id}")
+                        else:
+                            logger.warning(f"Ladder tier {tier.price_cents}¢ order failed: {tier_result}")
+                    else:
+                        tier_order_id = f"paper-ladder-{tier.price_cents}"
+                    position.ladder_order_ids.append(tier_order_id)
 
             self.positions[position.id] = position
 

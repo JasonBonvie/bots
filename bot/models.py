@@ -83,6 +83,17 @@ class HealthCheck(BaseModel):
 
 
 # ---------------------------------------------------------------------------
+# Shared order types
+# ---------------------------------------------------------------------------
+
+class LimitTier(BaseModel):
+    """One rung of a limit order ladder — fills if price dips to price_cents within window."""
+    price_cents: int = 40           # limit price for this tier (must be < primary limit)
+    window_minutes: int = 5         # cancel if unfilled after this many candles
+    stake_dollars: float = 1.0      # dollar amount to deploy at this price level
+
+
+# ---------------------------------------------------------------------------
 # Backtest models
 # ---------------------------------------------------------------------------
 
@@ -120,6 +131,8 @@ class BacktestParams(BaseModel):
     martingale_multiplier: float = 2.0       # stake multiplier per loss level
     max_martingale_level: int = 5            # stop growing after this many consecutive losses
     require_prev_candle_match: bool = False  # only trade when signal matches prev candle
+    # Limit order ladder (additional tiers below primary limit)
+    limit_ladder: List[LimitTier] = []       # empty = no ladder
     # Legacy (kept for API compatibility, not used in scoring)
     require_ema: bool = False
     require_rsi: bool = True

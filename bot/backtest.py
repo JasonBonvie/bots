@@ -18,6 +18,7 @@ from .models import (
     BacktestParams,
     BacktestResult,
     DrawdownPoint,
+    LimitTier,
     EquityPoint,
     FilterStats,
     TradeRecord,
@@ -471,7 +472,9 @@ class BacktestEngine:
         martingale_level = 0  # tracks consecutive losses
 
         rows = df.reset_index()
+        qty_override: Optional[int] = None  # set by ladder simulation, consumed once
         for _, row in rows.iterrows():
+            qty_override = None  # reset each candle
             direction = row["direction"]
             ts_int = int(row["timestamp"].timestamp())
 
@@ -504,29 +507,44 @@ class BacktestEngine:
             candles = kalshi_candles.get(ticker, [])
 
             if p.use_limit_order:
-                # --- Limit order simulation ---
+                # --- Limit order ladder simulation ---
                 limit_signals += 1
-                limit_price = p.limit_price_cents
 
-                filled = False
-                for c in candles[:p.limit_window_minutes]:
-                    try:
-                        ask_low = c.get("yes_ask", {})
-                        raw_low = ask_low.get("low_dollars") or ask_low.get("low")
-                        if raw_low is not None:
-                            low_cents = int(float(raw_low) * 100)
-                            if low_cents <= limit_price:
-                                filled = True
-                                break
-                    except (TypeError, ValueError):
-                        continue
+                def _check_tier_fill(price_cents: int, window_minutes: int) -> bool:
+                    """Returns True if the ask price dipped to price_cents within window_minutes candles."""
+                    for c in candles[:window_minutes]:
+                        try:
+                            ask_low = c.get("yes_ask", {})
+                            raw_low = ask_low.get("low_dollars") or ask_low.get("low")
+                            if raw_low is not None:
+                                if int(float(raw_low) * 100) <= price_cents:
+                                    return True
+                        except (TypeError, ValueError):
+                            continue
+                    return False
 
-                if not filled:
+                # Check primary tier
+                fills: List[tuple] = []  # (price_cents, qty)
+                if _check_tier_fill(p.limit_price_cents, p.limit_window_minutes):
+                    primary_qty = max(1, p.stake_cents // max(1, p.limit_price_cents))
+                    fills.append((p.limit_price_cents, primary_qty))
+
+                # Check each ladder tier
+                for tier in p.limit_ladder:
+                    if _check_tier_fill(tier.price_cents, tier.window_minutes):
+                        tier_qty = max(1, int(tier.stake_dollars * 100) // max(1, tier.price_cents))
+                        fills.append((tier.price_cents, tier_qty))
+
+                if not fills:
                     equity_curve.append(EquityPoint(time=ts_int, equity=equity))
                     continue
 
                 limit_fills += 1
-                entry = limit_price
+                # Weighted average entry across all filled tiers
+                total_qty = sum(q for _, q in fills)
+                total_cost = sum(pr * q for pr, q in fills)
+                entry = total_cost // total_qty
+                qty_override = total_qty  # use combined qty instead of default calculation
             else:
                 # --- Market order: use first candle's ask open ---
                 entry = p.entry_price_cents
@@ -543,7 +561,10 @@ class BacktestEngine:
             exit_price = 100 if won else 0
 
             # Martingale: double dollar stake each loss, reset on win
-            if p.use_martingale and martingale_level > 0:
+            # qty_override is set when a ladder fills (combined contracts across tiers)
+            if qty_override is not None:
+                qty = qty_override
+            elif p.use_martingale and martingale_level > 0:
                 qty = self._martingale_stake(p.stake_cents, entry, martingale_level)
             else:
                 qty = max(1, p.stake_cents // entry)
