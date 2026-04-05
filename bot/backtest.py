@@ -329,15 +329,18 @@ class BacktestEngine:
     # BTC-only mode
     # ------------------------------------------------------------------
 
-    def run_btc_only(self) -> BacktestResult:
+    def run_btc_only(self, df_btc: "pd.DataFrame | None" = None) -> BacktestResult:
         """
         Fast mode: signal direction vs next-candle direction determines outcome.
         Entry price is params.entry_price_cents (assumed flat).
+
+        df_btc: optional pre-fetched raw OHLCV dataframe — pass in when running
+                many trials so the data is fetched only once.
         """
         t0 = time.time()
         p = self.params
 
-        df = self.fetch_btc_ohlcv()
+        df = df_btc.copy() if df_btc is not None else self.fetch_btc_ohlcv()
         df = self.compute_indicators_vectorized(df)
         df = df.dropna(subset=["s_rsi5", "s_close_position", "s_body_ratio"])
 

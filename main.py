@@ -21,7 +21,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from bot.signals import compute_signals
 from bot.scheduler import scheduler
-from bot.models import SignalResult, HealthCheck, BacktestParams, BacktestResult
+from bot.models import SignalResult, HealthCheck, BacktestParams, BacktestResult, OptimizeRequest, OptimizeResponse, OptimizeTrialResult
 from bot.backtest import BacktestEngine
 from bot.live_price import live_price_feed
 from bot.kalshi_feed import kalshi_feed
@@ -937,6 +937,140 @@ async def refresh_signals():
             status_code=500,
             detail=f"Failed to refresh signals: {str(e)}"
         )
+
+
+# =====================
+# Strategy Optimizer API
+# =====================
+
+@app.post("/api/optimize", response_model=OptimizeResponse)
+async def optimize_strategy(req: OptimizeRequest):
+    """
+    Random-search optimizer: runs up to `trials` backtests with randomly
+    sampled parameter combinations and returns the top N ranked by `metric`.
+
+    Only btc_only mode is supported (fast, no Kalshi API calls needed).
+    """
+    import random
+    import time as _time
+
+    MAX_TRIALS = 300
+    trials = min(req.trials, MAX_TRIALS)
+    t0 = _time.time()
+
+    # ── parameter search space ─────────────────────────────────────────────
+    def sample_params() -> BacktestParams:
+        p = BacktestParams(
+            start_ts=req.start_ts,
+            end_ts=req.end_ts,
+            mode="btc_only",
+            stake_cents=req.stake_cents,
+            entry_price_cents=req.entry_price_cents,
+            slippage_cents=req.slippage_cents,
+        )
+
+        if req.vary_min_score:
+            p.min_score = random.randint(1, 4)
+
+        if req.vary_signals:
+            # Each signal has an independent 70% chance of being enabled.
+            # Ensure at least 2 signals are on so we get real trades.
+            for _ in range(20):  # retry until we get at least 2 enabled
+                p.use_close_position = random.random() > 0.3
+                p.use_wick_rejection  = random.random() > 0.3
+                p.use_body_strength   = random.random() > 0.3
+                p.use_rsi5            = random.random() > 0.3
+                p.use_volume_confirm  = random.random() > 0.3
+                p.use_engulfing       = random.random() > 0.3
+                p.mean_reversion_boost = random.random() > 0.4
+                enabled = sum([
+                    p.use_close_position, p.use_wick_rejection, p.use_body_strength,
+                    p.use_rsi5, p.use_volume_confirm, p.use_engulfing,
+                ])
+                if enabled >= 2:
+                    break
+
+        if req.vary_thresholds:
+            p.consecutive_penalty = random.randint(2, 8)
+            p.body_ratio_min      = round(random.uniform(0.35, 0.75), 2)
+            p.wick_ratio_min      = round(random.uniform(0.15, 0.55), 2)
+            p.volume_ratio_min    = round(random.uniform(0.9, 2.2), 2)
+            p.close_pos_bull      = round(random.uniform(0.55, 0.75), 2)
+            p.close_pos_bear      = round(1.0 - p.close_pos_bull, 2)
+            p.rsi5_bull           = round(random.uniform(50, 65), 1)
+            p.rsi5_bear           = round(random.uniform(35, 50), 1)
+
+        if req.vary_martingale:
+            p.use_martingale       = random.random() > 0.5
+            p.martingale_multiplier = round(random.uniform(1.5, 3.0), 1)
+            p.max_martingale_level = random.randint(3, 7)
+
+        return p
+
+    # ── run trials in executor (CPU-bound) ────────────────────────────────
+    def run_all_trials():
+        results = []
+        # Pre-fetch BTC OHLCV once and reuse across all trials
+        seed_params = BacktestParams(
+            start_ts=req.start_ts, end_ts=req.end_ts,
+            mode="btc_only",
+            stake_cents=req.stake_cents, entry_price_cents=req.entry_price_cents,
+        )
+        seed_engine = BacktestEngine(seed_params)
+        try:
+            df_btc = seed_engine.fetch_btc_ohlcv()
+        except Exception as e:
+            raise RuntimeError(f"Failed to fetch BTC data: {e}")
+
+        for trial_idx in range(trials):
+            p = sample_params()
+            try:
+                engine = BacktestEngine(p)
+                result = engine.run_btc_only(df_btc=df_btc)
+            except Exception:
+                continue
+
+            if result.trades_taken < req.min_trades:
+                continue
+
+            metric_val = getattr(result, req.metric, None)
+            if metric_val is None or (isinstance(metric_val, float) and (metric_val != metric_val)):
+                continue
+
+            results.append((metric_val, trial_idx, result, p))
+
+        return results
+
+    raw = await asyncio.get_event_loop().run_in_executor(None, run_all_trials)
+
+    # ── sort descending by metric, take top_n ─────────────────────────────
+    raw.sort(key=lambda x: x[0], reverse=True)
+    top = raw[: req.top_n]
+
+    trial_results = []
+    for rank, (metric_val, trial_idx, r, p) in enumerate(top, start=1):
+        trial_results.append(OptimizeTrialResult(
+            rank=rank,
+            trial=trial_idx + 1,
+            trades=r.trades_taken,
+            win_rate=r.win_rate,
+            total_pnl_cents=r.total_pnl_cents,
+            max_drawdown_cents=r.max_drawdown_cents,
+            sharpe_ratio=r.sharpe_ratio,
+            sortino_ratio=r.sortino_ratio,
+            profit_factor=min(r.profit_factor, 99.0),
+            calmar_ratio=r.calmar_ratio,
+            expectancy=r.expectancy,
+            params=p,
+        ))
+
+    return OptimizeResponse(
+        trials_run=trials,
+        trials_valid=len(raw),
+        metric=req.metric,
+        duration_seconds=round(_time.time() - t0, 2),
+        results=trial_results,
+    )
 
 
 if __name__ == "__main__":

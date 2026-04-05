@@ -206,3 +206,51 @@ class BacktestResult(BaseModel):
     limit_fills: int = 0             # signals where the limit order was filled
     limit_fill_rate: float = 0.0     # fills / signals
     error: Optional[str] = None
+
+
+# ── Optimizer ────────────────────────────────────────────────────────────────
+
+class OptimizeRequest(BaseModel):
+    """Request body for the strategy optimizer endpoint."""
+    start_ts: int
+    end_ts: int
+    mode: str = "btc_only"
+    trials: int = 50                    # number of random configs to try (max 300)
+    metric: str = "sharpe_ratio"        # field in BacktestResult to maximise
+    top_n: int = 20                     # how many results to return (best N)
+    # Fixed per-run params
+    stake_cents: int = 100
+    entry_price_cents: int = 50
+    slippage_cents: int = 2
+    min_trades: int = 5                 # discard configs with fewer trades
+    # Search space toggles — set False to fix at default
+    vary_min_score: bool = True
+    vary_signals: bool = True
+    vary_thresholds: bool = True
+    vary_martingale: bool = False
+
+
+class OptimizeTrialResult(BaseModel):
+    """One row in the optimizer results table."""
+    rank: int
+    trial: int
+    trades: int
+    win_rate: float
+    total_pnl_cents: int
+    max_drawdown_cents: int
+    sharpe_ratio: float
+    sortino_ratio: float
+    profit_factor: float
+    calmar_ratio: float
+    expectancy: float
+    # The exact BacktestParams that produced this result
+    params: BacktestParams
+
+
+class OptimizeResponse(BaseModel):
+    """Returned by /api/optimize."""
+    trials_run: int
+    trials_valid: int          # trials with >= min_trades
+    metric: str
+    duration_seconds: float
+    results: List[OptimizeTrialResult]

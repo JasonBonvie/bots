@@ -3404,6 +3404,164 @@
                     </table>
                 </div>
 
+            <!-- ══ STRATEGY OPTIMIZER ══════════════════════════════════════ -->
+            <div class="card" style="margin-top:24px;border-color:rgba(167,139,250,0.3);">
+                <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;">
+                    <div class="card-title" style="margin-bottom:0;">⚡ Strategy Optimizer</div>
+                    <span style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted);background:var(--bg-stat);padding:3px 8px;border-radius:4px;">Random Search</span>
+                    <span style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted);margin-left:auto;" id="opt-status"></span>
+                </div>
+
+                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px;margin-bottom:20px;">
+
+                    <!-- Left: search settings -->
+                    <div>
+                        <div style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted);letter-spacing:0.08em;margin-bottom:10px;">SEARCH SETTINGS</div>
+                        <div style="display:flex;flex-direction:column;gap:10px;">
+                            <div>
+                                <label style="font-family:var(--font-mono);font-size:11px;color:var(--text-dim);display:block;margin-bottom:4px;">Trials</label>
+                                <input type="number" id="opt-trials" value="100" min="10" max="300" step="10"
+                                    style="width:100%;padding:8px 10px;font-family:var(--font-mono);font-size:13px;background:var(--bg-stat);border:1px solid var(--border-color);border-radius:4px;color:var(--text-primary);" />
+                                <div style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted);margin-top:3px;">random configs to evaluate (max 300)</div>
+                            </div>
+                            <div>
+                                <label style="font-family:var(--font-mono);font-size:11px;color:var(--text-dim);display:block;margin-bottom:4px;">Optimize For</label>
+                                <select id="opt-metric"
+                                    style="width:100%;padding:8px 10px;font-family:var(--font-mono);font-size:13px;background:var(--bg-stat);border:1px solid var(--border-color);border-radius:4px;color:var(--text-primary);">
+                                    <option value="sharpe_ratio">Sharpe Ratio</option>
+                                    <option value="sortino_ratio">Sortino Ratio</option>
+                                    <option value="profit_factor">Profit Factor</option>
+                                    <option value="calmar_ratio">Calmar Ratio</option>
+                                    <option value="total_pnl_cents">Total P&amp;L</option>
+                                    <option value="win_rate">Win Rate</option>
+                                    <option value="expectancy">Expectancy</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label style="font-family:var(--font-mono);font-size:11px;color:var(--text-dim);display:block;margin-bottom:4px;">Min Trades (filter)</label>
+                                <input type="number" id="opt-min-trades" value="10" min="1" max="100"
+                                    style="width:100%;padding:8px 10px;font-family:var(--font-mono);font-size:13px;background:var(--bg-stat);border:1px solid var(--border-color);border-radius:4px;color:var(--text-primary);" />
+                                <div style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted);margin-top:3px;">discard configs with fewer trades</div>
+                            </div>
+                            <div>
+                                <label style="font-family:var(--font-mono);font-size:11px;color:var(--text-dim);display:block;margin-bottom:4px;">Show Top</label>
+                                <input type="number" id="opt-top-n" value="20" min="5" max="50"
+                                    style="width:100%;padding:8px 10px;font-family:var(--font-mono);font-size:13px;background:var(--bg-stat);border:1px solid var(--border-color);border-radius:4px;color:var(--text-primary);" />
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Middle: what to vary -->
+                    <div>
+                        <div style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted);letter-spacing:0.08em;margin-bottom:10px;">SEARCH SPACE</div>
+                        <div style="display:flex;flex-direction:column;gap:12px;">
+                            <label style="display:flex;align-items:center;gap:10px;cursor:pointer;">
+                                <input type="checkbox" id="opt-vary-score" checked style="accent-color:var(--accent-purple);width:15px;height:15px;" />
+                                <div>
+                                    <div style="font-family:var(--font-mono);font-size:12px;color:var(--text-primary);">Min Score</div>
+                                    <div style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted);">sweep 1 → 4</div>
+                                </div>
+                            </label>
+                            <label style="display:flex;align-items:center;gap:10px;cursor:pointer;">
+                                <input type="checkbox" id="opt-vary-signals" checked style="accent-color:var(--accent-purple);width:15px;height:15px;" />
+                                <div>
+                                    <div style="font-family:var(--font-mono);font-size:12px;color:var(--text-primary);">Signal Toggles</div>
+                                    <div style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted);">which of 7 signals are on</div>
+                                </div>
+                            </label>
+                            <label style="display:flex;align-items:center;gap:10px;cursor:pointer;">
+                                <input type="checkbox" id="opt-vary-thresholds" checked style="accent-color:var(--accent-purple);width:15px;height:15px;" />
+                                <div>
+                                    <div style="font-family:var(--font-mono);font-size:12px;color:var(--text-primary);">Thresholds</div>
+                                    <div style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted);">body/wick/volume/RSI/streak</div>
+                                </div>
+                            </label>
+                            <label style="display:flex;align-items:center;gap:10px;cursor:pointer;">
+                                <input type="checkbox" id="opt-vary-martingale" style="accent-color:var(--accent-purple);width:15px;height:15px;" />
+                                <div>
+                                    <div style="font-family:var(--font-mono);font-size:12px;color:var(--text-primary);">Martingale</div>
+                                    <div style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted);">on/off + multiplier</div>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Right: fixed params (reuse from backtest) -->
+                    <div>
+                        <div style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted);letter-spacing:0.08em;margin-bottom:10px;">FIXED PER-RUN</div>
+                        <div style="display:flex;flex-direction:column;gap:10px;">
+                            <div>
+                                <label style="font-family:var(--font-mono);font-size:11px;color:var(--text-dim);display:block;margin-bottom:4px;">Stake ($)</label>
+                                <input type="number" id="opt-stake" value="1" min="0.1" step="0.1"
+                                    style="width:100%;padding:8px 10px;font-family:var(--font-mono);font-size:13px;background:var(--bg-stat);border:1px solid var(--border-color);border-radius:4px;color:var(--text-primary);" />
+                            </div>
+                            <div>
+                                <label style="font-family:var(--font-mono);font-size:11px;color:var(--text-dim);display:block;margin-bottom:4px;">Entry Price (¢)</label>
+                                <input type="number" id="opt-entry" value="50" min="1" max="99"
+                                    style="width:100%;padding:8px 10px;font-family:var(--font-mono);font-size:13px;background:var(--bg-stat);border:1px solid var(--border-color);border-radius:4px;color:var(--text-primary);" />
+                            </div>
+                            <div>
+                                <label style="font-family:var(--font-mono);font-size:11px;color:var(--text-dim);display:block;margin-bottom:4px;">Slippage (¢)</label>
+                                <input type="number" id="opt-slippage" value="2" min="0" max="10"
+                                    style="width:100%;padding:8px 10px;font-family:var(--font-mono);font-size:13px;background:var(--bg-stat);border:1px solid var(--border-color);border-radius:4px;color:var(--text-primary);" />
+                            </div>
+                        </div>
+                        <div style="margin-top:16px;">
+                            <div style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted);margin-bottom:6px;">DATE RANGE: uses backtest date range above</div>
+                            <button onclick="optRun()" id="opt-run-btn"
+                                style="width:100%;padding:10px;font-family:var(--font-mono);font-size:13px;font-weight:600;background:var(--accent-purple);border:none;border-radius:6px;color:#fff;cursor:pointer;">
+                                ⚡ Run Optimizer
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Progress bar -->
+                <div id="opt-progress-wrap" style="display:none;margin-bottom:16px;">
+                    <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
+                        <span style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted);">Running...</span>
+                        <span id="opt-progress-label" style="font-family:var(--font-mono);font-size:11px;color:var(--accent-purple);">0%</span>
+                    </div>
+                    <div style="height:3px;background:var(--bg-stat);border-radius:2px;overflow:hidden;">
+                        <div id="opt-progress-bar" style="height:100%;width:0%;background:var(--accent-purple);border-radius:2px;transition:width 0.3s;"></div>
+                    </div>
+                </div>
+
+                <!-- Summary -->
+                <div id="opt-summary" style="display:none;margin-bottom:16px;padding:12px 16px;background:var(--bg-stat);border-radius:6px;display:flex;gap:24px;flex-wrap:wrap;">
+                    <div><span style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted);">TRIALS RUN </span><span id="opt-sum-trials" style="font-family:var(--font-mono);font-size:13px;color:var(--text-primary);font-weight:600;"></span></div>
+                    <div><span style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted);">VALID </span><span id="opt-sum-valid" style="font-family:var(--font-mono);font-size:13px;color:var(--accent-green);font-weight:600;"></span></div>
+                    <div><span style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted);">OPTIMIZED FOR </span><span id="opt-sum-metric" style="font-family:var(--font-mono);font-size:13px;color:var(--accent-purple);font-weight:600;"></span></div>
+                    <div><span style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted);">TIME </span><span id="opt-sum-time" style="font-family:var(--font-mono);font-size:13px;color:var(--text-dim);"></span></div>
+                    <div style="margin-left:auto;">
+                        <button onclick="optExportCSV()" style="padding:4px 12px;font-family:var(--font-mono);font-size:11px;background:var(--bg-stat);border:1px solid var(--border-color);border-radius:4px;color:var(--text-dim);cursor:pointer;">↓ Export CSV</button>
+                    </div>
+                </div>
+
+                <!-- Results table -->
+                <div id="opt-results-wrap" style="display:none;overflow-x:auto;">
+                    <table style="width:100%;border-collapse:collapse;font-family:var(--font-mono);font-size:12px;">
+                        <thead>
+                            <tr style="border-bottom:1px solid var(--border-color);">
+                                <th style="text-align:left;padding:8px 6px;color:var(--text-muted);font-size:10px;white-space:nowrap;">RANK</th>
+                                <th style="text-align:right;padding:8px 6px;color:var(--text-muted);font-size:10px;cursor:pointer;" onclick="optSort('sharpe_ratio')">SHARPE ↕</th>
+                                <th style="text-align:right;padding:8px 6px;color:var(--text-muted);font-size:10px;cursor:pointer;" onclick="optSort('sortino_ratio')">SORTINO ↕</th>
+                                <th style="text-align:right;padding:8px 6px;color:var(--text-muted);font-size:10px;cursor:pointer;" onclick="optSort('profit_factor')">PF ↕</th>
+                                <th style="text-align:right;padding:8px 6px;color:var(--text-muted);font-size:10px;cursor:pointer;" onclick="optSort('total_pnl_cents')">P&amp;L ↕</th>
+                                <th style="text-align:right;padding:8px 6px;color:var(--text-muted);font-size:10px;cursor:pointer;" onclick="optSort('win_rate')">WIN% ↕</th>
+                                <th style="text-align:right;padding:8px 6px;color:var(--text-muted);font-size:10px;cursor:pointer;" onclick="optSort('trades')">TRADES ↕</th>
+                                <th style="text-align:right;padding:8px 6px;color:var(--text-muted);font-size:10px;cursor:pointer;" onclick="optSort('max_drawdown_cents')">MAX DD ↕</th>
+                                <th style="text-align:left;padding:8px 6px;color:var(--text-muted);font-size:10px;">SIGNALS ON</th>
+                                <th style="text-align:right;padding:8px 6px;color:var(--text-muted);font-size:10px;">SCORE</th>
+                                <th style="text-align:right;padding:8px 6px;color:var(--text-muted);font-size:10px;"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="opt-tbody"></tbody>
+                    </table>
+                </div>
+            </div>
+            <!-- /optimizer -->
+
             </div>
             <!-- /tab-backtest -->
 
@@ -5750,6 +5908,244 @@
             function btToggleAllTrades() {
                 btAllTrades = !btAllTrades;
                 btRenderTradeTable();
+            }
+
+            // ── Optimizer ────────────────────────────────────────────────────
+            let optResults = [];      // all results from last run
+            let optSortKey = null;
+            let optSortAsc = false;
+
+            async function optRun() {
+                const btn = document.getElementById("opt-run-btn");
+                btn.textContent = "⟳ Running...";
+                btn.disabled = true;
+
+                const now = Math.floor(Date.now() / 1000);
+                const startTs = now - btRangeDays * 86400;
+                const trials = parseInt(document.getElementById("opt-trials").value || "100");
+
+                // fake progress animation (we can't stream from FastAPI easily)
+                const progressWrap = document.getElementById("opt-progress-wrap");
+                const progressBar = document.getElementById("opt-progress-bar");
+                const progressLabel = document.getElementById("opt-progress-label");
+                progressWrap.style.display = "block";
+                let pct = 0;
+                const estMs = trials * 60; // ~60ms per trial rough estimate
+                const interval = setInterval(() => {
+                    pct = Math.min(95, pct + (100 / (estMs / 200)));
+                    progressBar.style.width = pct.toFixed(1) + "%";
+                    progressLabel.textContent = pct.toFixed(0) + "%";
+                }, 200);
+
+                const payload = {
+                    start_ts: startTs,
+                    end_ts: now,
+                    mode: "btc_only",
+                    trials: trials,
+                    metric: document.getElementById("opt-metric").value,
+                    top_n: parseInt(document.getElementById("opt-top-n").value || "20"),
+                    min_trades: parseInt(document.getElementById("opt-min-trades").value || "10"),
+                    stake_cents: Math.round(parseFloat(document.getElementById("opt-stake").value || "1") * 100),
+                    entry_price_cents: parseInt(document.getElementById("opt-entry").value || "50"),
+                    slippage_cents: parseInt(document.getElementById("opt-slippage").value || "2"),
+                    vary_min_score: document.getElementById("opt-vary-score").checked,
+                    vary_signals: document.getElementById("opt-vary-signals").checked,
+                    vary_thresholds: document.getElementById("opt-vary-thresholds").checked,
+                    vary_martingale: document.getElementById("opt-vary-martingale").checked,
+                };
+
+                try {
+                    const resp = await fetch("/api/optimize", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(payload),
+                    });
+                    if (!resp.ok) {
+                        const err = await resp.json().catch(() => ({ detail: resp.statusText }));
+                        throw new Error(err.detail || "Optimizer failed");
+                    }
+                    const data = await resp.json();
+                    optResults = data.results || [];
+                    optSortKey = null;
+                    optRenderResults(data);
+                } catch (e) {
+                    alert("Optimizer error: " + e.message);
+                } finally {
+                    clearInterval(interval);
+                    progressBar.style.width = "100%";
+                    progressLabel.textContent = "100%";
+                    setTimeout(() => { progressWrap.style.display = "none"; }, 800);
+                    btn.textContent = "⚡ Run Optimizer";
+                    btn.disabled = false;
+                }
+            }
+
+            function optRenderResults(data) {
+                // Summary bar
+                const sumEl = document.getElementById("opt-summary");
+                sumEl.style.display = "flex";
+                document.getElementById("opt-sum-trials").textContent = data.trials_run;
+                document.getElementById("opt-sum-valid").textContent = data.trials_valid;
+                document.getElementById("opt-sum-metric").textContent = data.metric.replace(/_/g, " ").toUpperCase();
+                document.getElementById("opt-sum-time").textContent = data.duration_seconds.toFixed(1) + "s";
+
+                const wrap = document.getElementById("opt-results-wrap");
+                wrap.style.display = "";
+                optRenderTable(optResults);
+            }
+
+            const SIGNAL_LABELS = {
+                use_close_position: "Close Pos",
+                use_wick_rejection: "Wick Rej",
+                use_body_strength: "Body Str",
+                use_rsi5: "RSI5",
+                use_volume_confirm: "Volume",
+                use_engulfing: "Engulf",
+                mean_reversion_boost: "MRB",
+            };
+
+            function optRenderTable(rows) {
+                const tbody = document.getElementById("opt-tbody");
+                const metricKey = document.getElementById("opt-metric").value;
+                tbody.innerHTML = rows.map((r, i) => {
+                    const pnl = (r.total_pnl_cents / 100);
+                    const pnlSign = pnl >= 0 ? "+" : "";
+                    const pnlColor = pnl >= 0 ? "var(--accent-green)" : "var(--accent-red)";
+                    const wrColor = r.win_rate >= 0.5 ? "var(--accent-green)" : "var(--accent-red)";
+                    const ratioColor = v => v >= 1.5 ? "var(--accent-green)" : v >= 0.5 ? "var(--accent-amber)" : "var(--accent-red)";
+                    const dd = (r.max_drawdown_cents / 100).toFixed(2);
+
+                    const p = r.params;
+                    const signals = Object.keys(SIGNAL_LABELS)
+                        .filter(k => p[k])
+                        .map(k => SIGNAL_LABELS[k]);
+                    const sigBadges = signals.map(s =>
+                        `<span style="display:inline-block;padding:1px 5px;background:rgba(96,165,250,0.12);border:1px solid rgba(96,165,250,0.25);border-radius:3px;font-size:10px;color:var(--accent-blue);margin:1px;">${s}</span>`
+                    ).join("");
+
+                    // Highlight the column being optimized
+                    const sharpeStyle = metricKey === "sharpe_ratio" ? "color:var(--accent-purple);font-weight:700;" : "";
+                    const sortinoStyle = metricKey === "sortino_ratio" ? "color:var(--accent-purple);font-weight:700;" : "";
+                    const pfStyle = metricKey === "profit_factor" ? "color:var(--accent-purple);font-weight:700;" : "";
+                    const pnlStyle = metricKey === "total_pnl_cents" ? "font-weight:700;" : "";
+                    const wrStyle = metricKey === "win_rate" ? "font-weight:700;" : "";
+
+                    return `<tr style="border-bottom:1px solid var(--border-color);">
+                        <td style="padding:8px 6px;color:${i === 0 ? "var(--accent-amber)" : "var(--text-muted)"};">${i === 0 ? "🥇" : "#" + r.rank}</td>
+                        <td style="text-align:right;padding:8px 6px;${sharpeStyle}color:${sharpeStyle ? "var(--accent-purple)" : ratioColor(r.sharpe_ratio)};">${r.sharpe_ratio.toFixed(2)}</td>
+                        <td style="text-align:right;padding:8px 6px;${sortinoStyle}color:${sortinoStyle ? "var(--accent-purple)" : ratioColor(r.sortino_ratio)};">${r.sortino_ratio.toFixed(2)}</td>
+                        <td style="text-align:right;padding:8px 6px;${pfStyle}color:${pfStyle ? "var(--accent-purple)" : ratioColor(r.profit_factor)};">${r.profit_factor >= 99 ? "∞" : r.profit_factor.toFixed(2)}</td>
+                        <td style="text-align:right;padding:8px 6px;${pnlStyle}color:${pnlColor};">${pnlSign}$${Math.abs(pnl).toFixed(2)}</td>
+                        <td style="text-align:right;padding:8px 6px;${wrStyle}color:${wrColor};">${(r.win_rate * 100).toFixed(1)}%</td>
+                        <td style="text-align:right;padding:8px 6px;color:var(--text-dim);">${r.trades}</td>
+                        <td style="text-align:right;padding:8px 6px;color:var(--accent-red);">-$${dd}</td>
+                        <td style="padding:8px 6px;">${sigBadges}</td>
+                        <td style="text-align:right;padding:8px 6px;color:var(--text-dim);">${p.min_score}</td>
+                        <td style="text-align:right;padding:8px 6px;">
+                            <button onclick="optLoadConfig(${i})"
+                                style="padding:3px 9px;font-family:var(--font-mono);font-size:10px;background:rgba(167,139,250,0.15);border:1px solid rgba(167,139,250,0.4);border-radius:4px;color:var(--accent-purple);cursor:pointer;white-space:nowrap;">
+                                Load →
+                            </button>
+                        </td>
+                    </tr>`;
+                }).join("");
+            }
+
+            function optSort(key) {
+                if (optSortKey === key) {
+                    optSortAsc = !optSortAsc;
+                } else {
+                    optSortKey = key;
+                    optSortAsc = false;
+                }
+                const sorted = [...optResults].sort((a, b) => {
+                    const av = key === "max_drawdown_cents" ? Math.abs(a[key]) : (a[key] ?? 0);
+                    const bv = key === "max_drawdown_cents" ? Math.abs(b[key]) : (b[key] ?? 0);
+                    return optSortAsc ? av - bv : bv - av;
+                });
+                optRenderTable(sorted);
+            }
+
+            function optLoadConfig(idx) {
+                const r = optResults[idx];
+                if (!r) return;
+                const p = r.params;
+
+                // Load into the backtest panel
+                document.getElementById("bt-min-score").value = p.min_score;
+                document.getElementById("bt-consec").value = p.consecutive_penalty;
+                document.getElementById("bt-body-ratio").value = p.body_ratio_min;
+                document.getElementById("bt-wick-ratio").value = p.wick_ratio_min;
+                document.getElementById("bt-vol-ratio").value = p.volume_ratio_min;
+                document.getElementById("bt-rsi5-bull").value = p.rsi5_bull;
+                document.getElementById("bt-rsi5-bear").value = p.rsi5_bear;
+
+                // Update signal toggles
+                const signalMap = [
+                    ["bt-use-close-pos","card-close-pos","use_close_position"],
+                    ["bt-use-wick","card-wick","use_wick_rejection"],
+                    ["bt-use-body","card-body","use_body_strength"],
+                    ["bt-use-rsi5","card-rsi5","use_rsi5"],
+                    ["bt-use-volume","card-volume","use_volume_confirm"],
+                    ["bt-use-engulfing","card-engulfing","use_engulfing"],
+                    ["bt-mean-rev-boost","card-meanrev","mean_reversion_boost"],
+                ];
+                signalMap.forEach(([toggleId, cardId, paramKey]) => {
+                    const el = document.getElementById(toggleId);
+                    if (el) {
+                        el.checked = !!p[paramKey];
+                        btUpdateCard(el, cardId);
+                    }
+                });
+
+                // Scroll up to the backtest section and run it
+                document.getElementById("bt-run-btn").scrollIntoView({ behavior: "smooth", block: "center" });
+
+                // Flash the button to indicate config loaded
+                const runBtn = document.getElementById("bt-run-btn");
+                const orig = runBtn.style.background;
+                runBtn.style.background = "var(--accent-purple)";
+                runBtn.textContent = "✓ Config Loaded — Click to Run";
+                setTimeout(() => {
+                    runBtn.style.background = orig;
+                    runBtn.textContent = "▶ Run Backtest";
+                }, 2500);
+            }
+
+            function optExportCSV() {
+                if (!optResults.length) return;
+                const metric = document.getElementById("opt-metric").value;
+                const header = ["rank","sharpe","sortino","profit_factor","pnl_usd","win_rate_pct","trades","max_dd_usd","min_score","signals","consec_penalty","body_ratio","wick_ratio","vol_ratio","rsi5_bull","rsi5_bear"];
+                const rows = optResults.map(r => {
+                    const p = r.params;
+                    const signals = Object.keys(SIGNAL_LABELS).filter(k => p[k]).map(k => SIGNAL_LABELS[k]).join("|");
+                    return [
+                        r.rank,
+                        r.sharpe_ratio.toFixed(3),
+                        r.sortino_ratio.toFixed(3),
+                        r.profit_factor.toFixed(3),
+                        (r.total_pnl_cents / 100).toFixed(2),
+                        (r.win_rate * 100).toFixed(1),
+                        r.trades,
+                        (r.max_drawdown_cents / 100).toFixed(2),
+                        p.min_score,
+                        signals,
+                        p.consecutive_penalty,
+                        p.body_ratio_min,
+                        p.wick_ratio_min,
+                        p.volume_ratio_min,
+                        p.rsi5_bull,
+                        p.rsi5_bear,
+                    ].join(",");
+                });
+                const csv = [header.join(","), ...rows].join("\n");
+                const blob = new Blob([csv], { type: "text/csv" });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = `optimizer_${metric}_${new Date().toISOString().slice(0,10)}.csv`;
+                a.click();
+                URL.revokeObjectURL(url);
             }
         </script>
     <!-- Floating param tooltip -->
