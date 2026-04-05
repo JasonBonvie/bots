@@ -3239,33 +3239,26 @@
                             </div>
                         </div>
 
-                        <!-- Limit Order + Ladder -->
-                        <div style="min-width:280px;">
+                        <!-- Limit Order (primary) -->
+                        <div>
                             <div style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted);margin-bottom:6px;">LIMIT ORDER</div>
-                            <!-- Primary tier -->
-                            <div style="display:flex;gap:10px;align-items:center;margin-bottom:6px;">
+                            <div style="display:flex;gap:10px;align-items:center;">
                                 <label style="display:flex;align-items:center;gap:5px;font-family:var(--font-mono);font-size:12px;color:var(--accent-cyan,#5eead4);cursor:pointer;white-space:nowrap;">
                                     <input type="checkbox" id="bt-use-limit" style="accent-color:var(--accent-cyan,#5eead4);" onchange="btToggleLadder()" /> Use Limit
                                 </label>
                                 <div style="display:flex;align-items:center;gap:3px;">
                                     <input type="number" id="bt-limit-price" value="45" min="1" max="99"
-                                        style="width:42px;padding:5px 7px;font-family:var(--font-mono);font-size:12px;background:var(--bg-stat);border:1px solid var(--border-color);border-radius:4px;color:var(--text-primary);" />
-                                    <span style="color:var(--text-muted);font-size:11px;">¢</span>
+                                        style="width:45px;padding:6px 8px;font-family:var(--font-mono);font-size:13px;background:var(--bg-stat);border:1px solid var(--border-color);border-radius:4px;color:var(--text-primary);" />
+                                    <span style="color:var(--text-muted);font-size:12px;">¢</span>
                                 </div>
                                 <div style="display:flex;align-items:center;gap:3px;">
                                     <input type="number" id="bt-limit-window" value="3" min="1" max="15"
-                                        style="width:36px;padding:5px 7px;font-family:var(--font-mono);font-size:12px;background:var(--bg-stat);border:1px solid var(--border-color);border-radius:4px;color:var(--text-primary);" />
-                                    <span style="color:var(--text-muted);font-size:11px;">min</span>
+                                        style="width:40px;padding:6px 8px;font-family:var(--font-mono);font-size:13px;background:var(--bg-stat);border:1px solid var(--border-color);border-radius:4px;color:var(--text-primary);" />
+                                    <span style="color:var(--text-muted);font-size:12px;">min</span>
                                 </div>
-                            </div>
-                            <!-- Ladder tiers -->
-                            <div id="bt-ladder-wrap" style="display:none;">
-                                <div id="bt-ladder-rows" style="display:flex;flex-direction:column;gap:5px;margin-bottom:6px;"></div>
-                                <button onclick="btAddLadderTier()"
-                                    style="padding:4px 10px;font-family:var(--font-mono);font-size:10px;background:rgba(94,234,212,0.1);border:1px solid rgba(94,234,212,0.3);border-radius:4px;color:#5eead4;cursor:pointer;">
+                                <button id="bt-add-tier-btn" onclick="btAddLadderTier()" style="display:none;padding:5px 12px;font-family:var(--font-mono);font-size:11px;background:rgba(94,234,212,0.1);border:1px solid rgba(94,234,212,0.3);border-radius:4px;color:#5eead4;cursor:pointer;white-space:nowrap;">
                                     + Add Tier
                                 </button>
-                                <div id="bt-ladder-summary" style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted);margin-top:5px;"></div>
                             </div>
                         </div>
 
@@ -3276,6 +3269,41 @@
                                 ▶ Run Backtest
                             </button>
                         </div>
+                    </div>
+                </div>
+
+                <!-- Limit order ladder (full-width, shown when Use Limit is on) -->
+                <div id="bt-ladder-wrap" class="card" style="display:none;margin-bottom:16px;padding:16px 20px;">
+                    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+                        <div style="display:flex;align-items:center;gap:10px;">
+                            <div style="font-family:var(--font-mono);font-size:11px;font-weight:600;color:var(--text-muted);letter-spacing:0.08em;">LIMIT LADDER</div>
+                            <span style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted);background:var(--bg-stat);padding:2px 7px;border-radius:3px;">Scale-in at lower prices</span>
+                        </div>
+                        <div id="bt-ladder-summary" style="font-family:var(--font-mono);font-size:11px;color:var(--accent-blue);"></div>
+                    </div>
+                    <!-- Header row -->
+                    <div style="display:grid;grid-template-columns:32px 1fr 1fr 1fr 32px;gap:10px;align-items:center;margin-bottom:6px;padding:0 4px;">
+                        <div></div>
+                        <div style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted);letter-spacing:0.06em;">LIMIT PRICE</div>
+                        <div style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted);letter-spacing:0.06em;">TIME WINDOW</div>
+                        <div style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted);letter-spacing:0.06em;">STAKE</div>
+                        <div></div>
+                    </div>
+                    <!-- Primary row (read-only reference) -->
+                    <div style="display:grid;grid-template-columns:32px 1fr 1fr 1fr 32px;gap:10px;align-items:center;padding:8px 4px;background:rgba(255,255,255,0.03);border-radius:4px;margin-bottom:4px;">
+                        <div style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted);text-align:center;">P</div>
+                        <div style="font-family:var(--font-mono);font-size:13px;color:var(--text-dim);" id="bt-ladder-primary-price">45¢</div>
+                        <div style="font-family:var(--font-mono);font-size:13px;color:var(--text-dim);" id="bt-ladder-primary-window">3 min</div>
+                        <div style="font-family:var(--font-mono);font-size:13px;color:var(--text-dim);">— (base stake)</div>
+                        <div></div>
+                    </div>
+                    <!-- Dynamic tier rows -->
+                    <div id="bt-ladder-rows" style="display:flex;flex-direction:column;gap:4px;"></div>
+                    <div style="margin-top:10px;">
+                        <button onclick="btAddLadderTier()"
+                            style="padding:6px 14px;font-family:var(--font-mono);font-size:11px;background:rgba(94,234,212,0.08);border:1px dashed rgba(94,234,212,0.35);border-radius:4px;color:#5eead4;cursor:pointer;">
+                            + Add Tier
+                        </button>
                     </div>
                 </div>
 
@@ -5548,17 +5576,26 @@
 
             function btToggleLadder() {
                 const on = document.getElementById("bt-use-limit").checked;
-                document.getElementById("bt-ladder-wrap").style.display = on ? "block" : "none";
+                const wrap = document.getElementById("bt-ladder-wrap");
+                const addBtn = document.getElementById("bt-add-tier-btn");
+                wrap.style.display = on ? "block" : "none";
+                if (addBtn) addBtn.style.display = on ? "inline-block" : "none";
+                if (on) btSyncLadderPrimary();
+            }
+
+            function btSyncLadderPrimary() {
+                const priceEl = document.getElementById("bt-ladder-primary-price");
+                const winEl   = document.getElementById("bt-ladder-primary-window");
+                if (priceEl) priceEl.textContent = (document.getElementById("bt-limit-price")?.value || "45") + "¢";
+                if (winEl)   winEl.textContent   = (document.getElementById("bt-limit-window")?.value || "3") + " min";
             }
 
             function btAddLadderTier() {
-                // Default: 5¢ below last tier (or primary price)
                 const primaryPrice = parseInt(document.getElementById("bt-limit-price").value || "45");
                 const lastPrice = btLadderTiers.length
                     ? btLadderTiers[btLadderTiers.length - 1].price_cents
                     : primaryPrice;
-                const newPrice = Math.max(1, lastPrice - 5);
-                btLadderTiers.push({ price_cents: newPrice, window_minutes: 5, stake_dollars: 1.0 });
+                btLadderTiers.push({ price_cents: Math.max(1, lastPrice - 5), window_minutes: 5, stake_dollars: 1.0 });
                 btRenderLadderRows();
             }
 
@@ -5568,30 +5605,35 @@
             }
 
             function btRenderLadderRows() {
-                const container = document.getElementById("bt-ladder-rows");
-                container.innerHTML = btLadderTiers.map((t, i) => `
-                    <div style="display:flex;align-items:center;gap:6px;">
-                        <span style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted);width:14px;">T${i+1}</span>
-                        <div style="display:flex;align-items:center;gap:2px;">
-                            <input type="number" value="${t.price_cents}" min="1" max="99"
-                                onchange="btLadderTiers[${i}].price_cents=parseInt(this.value)||1;btUpdateLadderSummary()"
-                                style="width:38px;padding:4px 6px;font-family:var(--font-mono);font-size:11px;background:var(--bg-stat);border:1px solid var(--border-color);border-radius:4px;color:var(--accent-blue);" />
-                            <span style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted);">¢</span>
+                const inp = (val, w, color, onChange) =>
+                    `<input type="number" value="${val}" onchange="${onChange}"
+                        style="width:${w};padding:7px 10px;font-family:var(--font-mono);font-size:13px;
+                        background:var(--bg-stat);border:1px solid var(--border-color);border-radius:4px;
+                        color:${color};outline:none;" />`;
+
+                document.getElementById("bt-ladder-rows").innerHTML = btLadderTiers.map((t, i) => `
+                    <div style="display:grid;grid-template-columns:32px 1fr 1fr 1fr 32px;gap:10px;align-items:center;padding:6px 4px;border-radius:4px;"
+                         onmouseenter="this.style.background='rgba(255,255,255,0.02)'" onmouseleave="this.style.background=''">
+                        <div style="font-family:var(--font-mono);font-size:10px;color:var(--accent-blue);text-align:center;font-weight:600;">T${i+1}</div>
+                        <div style="display:flex;align-items:center;gap:5px;">
+                            ${inp(t.price_cents, "60px", "var(--accent-blue)",
+                                `btLadderTiers[${i}].price_cents=parseInt(this.value)||1;btUpdateLadderSummary()`)}
+                            <span style="font-family:var(--font-mono);font-size:12px;color:var(--text-muted);">¢</span>
                         </div>
-                        <div style="display:flex;align-items:center;gap:2px;">
-                            <input type="number" value="${t.window_minutes}" min="1" max="30"
-                                onchange="btLadderTiers[${i}].window_minutes=parseInt(this.value)||1"
-                                style="width:32px;padding:4px 6px;font-family:var(--font-mono);font-size:11px;background:var(--bg-stat);border:1px solid var(--border-color);border-radius:4px;color:var(--text-primary);" />
-                            <span style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted);">min</span>
+                        <div style="display:flex;align-items:center;gap:5px;">
+                            ${inp(t.window_minutes, "52px", "var(--text-primary)",
+                                `btLadderTiers[${i}].window_minutes=parseInt(this.value)||1`)}
+                            <span style="font-family:var(--font-mono);font-size:12px;color:var(--text-muted);">min</span>
                         </div>
-                        <div style="display:flex;align-items:center;gap:2px;">
-                            <span style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted);">$</span>
-                            <input type="number" value="${t.stake_dollars}" min="0.1" step="0.1"
-                                onchange="btLadderTiers[${i}].stake_dollars=parseFloat(this.value)||0.1;btUpdateLadderSummary()"
-                                style="width:36px;padding:4px 6px;font-family:var(--font-mono);font-size:11px;background:var(--bg-stat);border:1px solid var(--border-color);border-radius:4px;color:var(--accent-green);" />
+                        <div style="display:flex;align-items:center;gap:5px;">
+                            <span style="font-family:var(--font-mono);font-size:12px;color:var(--text-muted);">$</span>
+                            ${inp(t.stake_dollars, "60px", "var(--accent-green)",
+                                `btLadderTiers[${i}].stake_dollars=parseFloat(this.value)||0.1;btUpdateLadderSummary()`)}
                         </div>
                         <button onclick="btRemoveLadderTier(${i})"
-                            style="padding:2px 7px;font-family:var(--font-mono);font-size:10px;background:rgba(248,113,113,0.1);border:1px solid rgba(248,113,113,0.3);border-radius:3px;color:var(--accent-red);cursor:pointer;">✕</button>
+                            style="width:24px;height:24px;padding:0;font-family:var(--font-mono);font-size:12px;
+                            background:rgba(248,113,113,0.08);border:1px solid rgba(248,113,113,0.25);
+                            border-radius:4px;color:var(--accent-red);cursor:pointer;line-height:1;">✕</button>
                     </div>`).join("");
                 btUpdateLadderSummary();
             }
@@ -5601,9 +5643,12 @@
                 if (!summary) return;
                 if (!btLadderTiers.length) { summary.textContent = ""; return; }
                 const primaryStake = parseFloat(document.getElementById("bt-stake").value || "1");
+                const primaryPrice = parseInt(document.getElementById("bt-limit-price").value || "45");
                 const totalStake = primaryStake + btLadderTiers.reduce((s, t) => s + t.stake_dollars, 0);
-                const tiers = btLadderTiers.map(t => `${t.price_cents}¢`).join(" → ");
-                summary.textContent = `Ladder: ${tiers}  ·  max exposure $${totalStake.toFixed(2)}/trade`;
+                const avgPrice = (primaryPrice * primaryStake + btLadderTiers.reduce((s,t) => s + t.price_cents * t.stake_dollars, 0)) / totalStake;
+                const tierStr = btLadderTiers.map(t => `${t.price_cents}¢`).join(" → ");
+                summary.textContent = `${tierStr}  ·  avg entry ~${avgPrice.toFixed(0)}¢  ·  max $${totalStake.toFixed(2)}/trade`;
+                btSyncLadderPrimary();
             }
 
             // Martingale backtest toggle
