@@ -2993,49 +2993,54 @@
                 <!-- Controls -->
                 <div class="card">
                     <div class="card-title">Backtest Configuration</div>
-                    <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end;">
+                    <!-- Outer column layout: controls bar → signals → limit+run -->
+                    <div style="display:flex;flex-direction:column;gap:20px;">
 
-                        <!-- Date range presets -->
-                        <div>
-                            <div style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted);margin-bottom:6px;">DATE RANGE</div>
-                            <div style="display:flex;gap:4px;">
-                                <button class="bt-range-btn" data-days="7"  onclick="btSetRange(7)"  style="padding:6px 12px;font-family:var(--font-mono);font-size:12px;background:var(--bg-stat);border:1px solid var(--border-color);border-radius:4px;color:var(--text-muted);cursor:pointer;">7D</button>
-                                <button class="bt-range-btn" data-days="30" onclick="btSetRange(30)" style="padding:6px 12px;font-family:var(--font-mono);font-size:12px;background:var(--accent-green);border:1px solid var(--accent-green);border-radius:4px;color:#000;cursor:pointer;font-weight:600;">30D</button>
-                                <button class="bt-range-btn" data-days="90" onclick="btSetRange(90)" style="padding:6px 12px;font-family:var(--font-mono);font-size:12px;background:var(--bg-stat);border:1px solid var(--border-color);border-radius:4px;color:var(--text-muted);cursor:pointer;">90D</button>
-                            </div>
-                        </div>
+                        <!-- ── Row 1: scalar controls ────────────────────────── -->
+                        <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end;">
 
-                        <!-- Min score -->
-                        <div>
-                            <div style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted);margin-bottom:6px;">MIN SCORE</div>
-                            <select id="bt-min-score" style="padding:8px 10px;font-family:var(--font-mono);font-size:13px;background:var(--bg-stat);border:1px solid var(--border-color);border-radius:4px;color:var(--text-primary);">
-                                <option value="1">1</option>
-                                <option value="2">2</option>
-                                <option value="3" selected>3</option>
-                                <option value="4">4</option>
-                                <option value="5">5</option>
-                                <option value="6">6</option>
-                                <option value="7">7</option>
-                            </select>
-                            <div id="bt-score-hint" style="font-family:var(--font-mono);font-size:10px;margin-top:4px;color:var(--text-muted);">max: 6 signals</div>
-                        </div>
-
-                        <!-- Stake + Martingale -->
-                        <div style="display:flex;flex-direction:column;gap:8px;">
+                            <!-- Date range -->
                             <div>
-                                <div style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted);margin-bottom:6px;">STAKE / TRADE</div>
+                                <div style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted);margin-bottom:6px;letter-spacing:.05em;">DATE RANGE</div>
+                                <div style="display:flex;gap:4px;">
+                                    <button class="bt-range-btn" data-days="7"  onclick="btSetRange(7)"  style="padding:6px 12px;font-family:var(--font-mono);font-size:12px;background:var(--bg-stat);border:1px solid var(--border-color);border-radius:4px;color:var(--text-muted);cursor:pointer;">7D</button>
+                                    <button class="bt-range-btn" data-days="30" onclick="btSetRange(30)" style="padding:6px 12px;font-family:var(--font-mono);font-size:12px;background:var(--accent-green);border:1px solid var(--accent-green);border-radius:4px;color:#000;cursor:pointer;font-weight:600;">30D</button>
+                                    <button class="bt-range-btn" data-days="90" onclick="btSetRange(90)" style="padding:6px 12px;font-family:var(--font-mono);font-size:12px;background:var(--bg-stat);border:1px solid var(--border-color);border-radius:4px;color:var(--text-muted);cursor:pointer;">90D</button>
+                                </div>
+                            </div>
+
+                            <!-- Min score -->
+                            <div>
+                                <div style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted);margin-bottom:6px;letter-spacing:.05em;">MIN SCORE</div>
+                                <select id="bt-min-score" style="padding:8px 10px;font-family:var(--font-mono);font-size:13px;background:var(--bg-stat);border:1px solid var(--border-color);border-radius:4px;color:var(--text-primary);">
+                                    <option value="1">1</option>
+                                    <option value="2">2</option>
+                                    <option value="3" selected>3</option>
+                                    <option value="4">4</option>
+                                    <option value="5">5</option>
+                                    <option value="6">6</option>
+                                    <option value="7">7</option>
+                                </select>
+                                <div id="bt-score-hint" style="font-family:var(--font-mono);font-size:10px;margin-top:4px;color:var(--text-muted);">max: 6 signals</div>
+                            </div>
+
+                            <!-- Stake -->
+                            <div>
+                                <div style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted);margin-bottom:6px;letter-spacing:.05em;">STAKE / TRADE</div>
                                 <div style="display:flex;align-items:center;gap:4px;">
                                     <span style="color:var(--text-muted);font-size:13px;">$</span>
                                     <input type="number" id="bt-stake" value="1.00" min="0.01" step="0.01"
                                         style="width:70px;padding:8px 10px;font-family:var(--font-mono);font-size:13px;background:var(--bg-stat);border:1px solid var(--border-color);border-radius:4px;color:var(--text-primary);" />
                                 </div>
                             </div>
-                            <div style="background:var(--bg-stat);border:1px solid var(--border-color);border-radius:8px;padding:8px 10px;">
-                                <label style="display:flex;align-items:center;gap:7px;cursor:pointer;margin-bottom:6px;">
+
+                            <!-- Martingale -->
+                            <div style="background:var(--bg-stat);border:1px solid var(--border-color);border-radius:8px;padding:8px 12px;">
+                                <label style="display:flex;align-items:center;gap:7px;cursor:pointer;margin-bottom:0;">
                                     <input type="checkbox" id="bt-use-martingale" style="accent-color:var(--accent-amber);" onchange="btToggleMartingale()" />
                                     <span style="font-family:var(--font-mono);font-size:11px;font-weight:600;color:var(--accent-amber);">🎰 Martingale</span>
                                 </label>
-                                <div id="bt-martingale-params" style="display:none;display:flex;flex-direction:column;gap:5px;">
+                                <div id="bt-martingale-params" style="display:none;flex-direction:column;gap:5px;margin-top:8px;">
                                     <label style="display:flex;align-items:center;gap:5px;font-family:var(--font-mono);font-size:10px;color:var(--text-muted);">
                                         Multiplier
                                         <input type="number" id="bt-mg-mult" value="2.0" min="1.1" max="4.0" step="0.1"
@@ -3051,39 +3056,40 @@
                                     <div id="bt-mg-preview" style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted);margin-top:2px;"></div>
                                 </div>
                             </div>
-                        </div>
 
-                        <!-- Mode -->
-                        <div>
-                            <div style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted);margin-bottom:6px;">MODE</div>
-                            <select id="bt-mode" style="padding:8px 10px;font-family:var(--font-mono);font-size:13px;background:var(--bg-stat);border:1px solid var(--border-color);border-radius:4px;color:var(--text-primary);">
-                                <option value="btc_only" selected>BTC-Only (Fast)</option>
-                                <option value="kalshi">Kalshi (Real Prices)</option>
-                            </select>
-                        </div>
-
-                        <!-- Entry price (btc_only assumed) -->
-                        <div id="bt-entry-wrap">
-                            <div style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted);margin-bottom:6px;">ENTRY PRICE</div>
-                            <div style="display:flex;align-items:center;gap:4px;">
-                                <input type="number" id="bt-entry" value="50" min="1" max="99"
-                                    style="width:55px;padding:8px 10px;font-family:var(--font-mono);font-size:13px;background:var(--bg-stat);border:1px solid var(--border-color);border-radius:4px;color:var(--text-primary);" />
-                                <span style="color:var(--text-muted);font-size:13px;">¢</span>
+                            <!-- Mode -->
+                            <div>
+                                <div style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted);margin-bottom:6px;letter-spacing:.05em;">MODE</div>
+                                <select id="bt-mode" style="padding:8px 10px;font-family:var(--font-mono);font-size:13px;background:var(--bg-stat);border:1px solid var(--border-color);border-radius:4px;color:var(--text-primary);">
+                                    <option value="btc_only" selected>BTC-Only (Fast)</option>
+                                    <option value="kalshi">Kalshi (Real Prices)</option>
+                                </select>
                             </div>
-                        </div>
 
-                        <!-- Slippage -->
-                        <div>
-                            <div style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted);margin-bottom:6px;">SLIPPAGE</div>
-                            <div style="display:flex;align-items:center;gap:4px;">
-                                <input type="number" id="bt-slippage" value="2" min="0" max="10"
-                                    style="width:55px;padding:8px 10px;font-family:var(--font-mono);font-size:13px;background:var(--bg-stat);border:1px solid var(--border-color);border-radius:4px;color:var(--text-primary);" />
-                                <span style="color:var(--text-muted);font-size:13px;">¢</span>
+                            <!-- Entry price -->
+                            <div id="bt-entry-wrap">
+                                <div style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted);margin-bottom:6px;letter-spacing:.05em;">ENTRY PRICE</div>
+                                <div style="display:flex;align-items:center;gap:4px;">
+                                    <input type="number" id="bt-entry" value="50" min="1" max="99"
+                                        style="width:55px;padding:8px 10px;font-family:var(--font-mono);font-size:13px;background:var(--bg-stat);border:1px solid var(--border-color);border-radius:4px;color:var(--text-primary);" />
+                                    <span style="color:var(--text-muted);font-size:13px;">¢</span>
+                                </div>
                             </div>
-                        </div>
 
-                        <!-- Signal Cards — toggle + thresholds unified per signal -->
-                        <div style="grid-column: 1 / -1;">
+                            <!-- Slippage -->
+                            <div>
+                                <div style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted);margin-bottom:6px;letter-spacing:.05em;">SLIPPAGE</div>
+                                <div style="display:flex;align-items:center;gap:4px;">
+                                    <input type="number" id="bt-slippage" value="2" min="0" max="10"
+                                        style="width:55px;padding:8px 10px;font-family:var(--font-mono);font-size:13px;background:var(--bg-stat);border:1px solid var(--border-color);border-radius:4px;color:var(--text-primary);" />
+                                    <span style="color:var(--text-muted);font-size:13px;">¢</span>
+                                </div>
+                            </div>
+
+                        </div><!-- end row 1 -->
+
+                        <!-- ── Row 2: Signal Cards ────────────────────────────── -->
+                        <div>
                             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
                                 <div style="font-family:var(--font-mono);font-size:11px;font-weight:600;color:var(--accent-cyan,#5eead4);letter-spacing:0.05em;">
                                     SIGNALS
@@ -3094,7 +3100,7 @@
                                     <button onclick="btSetAllSignals(false)" style="font-family:var(--font-mono);font-size:10px;padding:3px 10px;background:transparent;border:1px solid var(--border-color);border-radius:4px;color:var(--text-muted);cursor:pointer;">All Off</button>
                                 </div>
                             </div>
-                            <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px;">
+                            <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;">
 
                                 <!-- Signal 1: Close Position -->
                                 <div class="bt-signal-card active" id="card-close-pos">
@@ -3306,37 +3312,34 @@
                             </div>
                         </div>
 
-                        <!-- Limit Order (primary) -->
-                        <div>
-                            <div style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted);margin-bottom:6px;">LIMIT ORDER</div>
-                            <div style="display:flex;gap:10px;align-items:center;">
-                                <label style="display:flex;align-items:center;gap:5px;font-family:var(--font-mono);font-size:12px;color:var(--accent-cyan,#5eead4);cursor:pointer;white-space:nowrap;">
-                                    <input type="checkbox" id="bt-use-limit" style="accent-color:var(--accent-cyan,#5eead4);" onchange="btToggleLadder()" /> Use Limit
-                                </label>
-                                <div style="display:flex;align-items:center;gap:3px;">
-                                    <input type="number" id="bt-limit-price" value="45" min="1" max="99"
-                                        style="width:45px;padding:6px 8px;font-family:var(--font-mono);font-size:13px;background:var(--bg-stat);border:1px solid var(--border-color);border-radius:4px;color:var(--text-primary);" />
-                                    <span style="color:var(--text-muted);font-size:12px;">¢</span>
-                                </div>
-                                <div style="display:flex;align-items:center;gap:3px;">
-                                    <input type="number" id="bt-limit-window" value="3" min="1" max="15"
-                                        style="width:40px;padding:6px 8px;font-family:var(--font-mono);font-size:13px;background:var(--bg-stat);border:1px solid var(--border-color);border-radius:4px;color:var(--text-primary);" />
-                                    <span style="color:var(--text-muted);font-size:12px;">min</span>
-                                </div>
-                                <button id="bt-add-tier-btn" onclick="btAddLadderTier()" style="display:none;padding:5px 12px;font-family:var(--font-mono);font-size:11px;background:rgba(94,234,212,0.1);border:1px solid rgba(94,234,212,0.3);border-radius:4px;color:#5eead4;cursor:pointer;white-space:nowrap;">
-                                    + Add Tier
+                        <!-- ── Row 3: Limit Order + Run button ──────────────── -->
+                        <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding-top:4px;border-top:1px solid var(--border-color);">
+                            <div style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted);letter-spacing:.05em;white-space:nowrap;">LIMIT ORDER</div>
+                            <label style="display:flex;align-items:center;gap:5px;font-family:var(--font-mono);font-size:12px;color:var(--accent-cyan,#5eead4);cursor:pointer;white-space:nowrap;">
+                                <input type="checkbox" id="bt-use-limit" style="accent-color:var(--accent-cyan,#5eead4);" onchange="btToggleLadder()" /> Use Limit
+                            </label>
+                            <div style="display:flex;align-items:center;gap:4px;">
+                                <input type="number" id="bt-limit-price" value="45" min="1" max="99"
+                                    style="width:50px;padding:6px 8px;font-family:var(--font-mono);font-size:13px;background:var(--bg-stat);border:1px solid var(--border-color);border-radius:4px;color:var(--text-primary);" />
+                                <span style="color:var(--text-muted);font-size:12px;">¢</span>
+                            </div>
+                            <div style="display:flex;align-items:center;gap:4px;">
+                                <input type="number" id="bt-limit-window" value="3" min="1" max="15"
+                                    style="width:46px;padding:6px 8px;font-family:var(--font-mono);font-size:13px;background:var(--bg-stat);border:1px solid var(--border-color);border-radius:4px;color:var(--text-primary);" />
+                                <span style="color:var(--text-muted);font-size:12px;">min</span>
+                            </div>
+                            <button id="bt-add-tier-btn" onclick="btAddLadderTier()" style="display:none;padding:5px 12px;font-family:var(--font-mono);font-size:11px;background:rgba(94,234,212,0.1);border:1px solid rgba(94,234,212,0.3);border-radius:4px;color:#5eead4;cursor:pointer;white-space:nowrap;">
+                                + Add Tier
+                            </button>
+                            <div style="margin-left:auto;">
+                                <button id="bt-run-btn" onclick="btRun()"
+                                    style="padding:10px 32px;font-family:var(--font-mono);font-size:13px;font-weight:600;background:var(--accent-green);border:none;border-radius:6px;color:#000;cursor:pointer;">
+                                    ▶ Run Backtest
                                 </button>
                             </div>
                         </div>
 
-                        <!-- Run button -->
-                        <div style="margin-left:auto;">
-                            <button id="bt-run-btn" onclick="btRun()"
-                                style="padding:10px 28px;font-family:var(--font-mono);font-size:13px;font-weight:600;background:var(--accent-green);border:none;border-radius:6px;color:#000;cursor:pointer;">
-                                ▶ Run Backtest
-                            </button>
-                        </div>
-                    </div>
+                    </div><!-- end outer column -->
                 </div>
 
                 <!-- Limit order ladder (full-width, shown when Use Limit is on) -->
