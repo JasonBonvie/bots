@@ -3395,7 +3395,13 @@
                 <div id="bt-chart-wrap" class="card" style="display:none;">
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
                         <div class="card-title" style="margin-bottom:0;">Equity Curve</div>
-                        <span id="bt-chart-status" style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted);"></span>
+                        <div style="display:flex;align-items:center;gap:10px;">
+                            <span id="bt-chart-status" style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted);"></span>
+                            <button id="bt-deploy-btn" onclick="btDeployAsBot()"
+                                style="padding:6px 16px;font-family:var(--font-mono);font-size:12px;font-weight:600;background:var(--accent-purple);border:none;border-radius:5px;color:#fff;cursor:pointer;display:flex;align-items:center;gap:6px;">
+                                🚀 Deploy as Bot
+                            </button>
+                        </div>
                     </div>
                     <div id="bt-equity-chart" style="height:200px;border:1px solid var(--border-color);border-radius:6px;"></div>
                     <div style="display:flex;justify-content:space-between;align-items:center;margin-top:16px;margin-bottom:8px;">
@@ -6027,6 +6033,84 @@
                 const tableWrap = document.getElementById("bt-table-wrap");
                 tableWrap.style.display = "";
                 btRenderTradeTable();
+            }
+
+            function btDeployAsBot() {
+                // ── 1. Switch to Bots tab ─────────────────────────────────────
+                switchTab("bots");
+
+                // ── 2. Open the create-bot config panel ───────────────────────
+                const panel = document.getElementById("createBotConfig");
+                if (panel) panel.style.display = "block";
+
+                // ── 3. Read backtest params ───────────────────────────────────
+                const stake   = parseFloat(document.getElementById("bt-stake").value || "1");
+                const minScore = parseFloat(document.getElementById("bt-min-score").value || "3");
+                const useLimit = document.getElementById("bt-use-limit").checked;
+                const limitPrice = parseInt(document.getElementById("bt-limit-price").value || "45");
+                const limitWindow = parseInt(document.getElementById("bt-limit-window").value || "3");
+                const useMartingale = document.getElementById("bt-use-martingale")?.checked || false;
+                const mgMult = parseFloat(document.getElementById("bt-mg-mult")?.value || "2.0");
+                const mgMax  = parseInt(document.getElementById("bt-mg-max")?.value || "5");
+
+                // Signal toggles
+                const useClosePos   = document.getElementById("bt-use-close-pos")?.checked ?? true;
+                const useWick       = document.getElementById("bt-use-wick")?.checked ?? true;
+                const useBody       = document.getElementById("bt-use-body")?.checked ?? true;
+                const useRsi5       = document.getElementById("bt-use-rsi5")?.checked ?? true;
+                const useVolume     = document.getElementById("bt-use-volume")?.checked ?? true;
+                const useEngulfing  = document.getElementById("bt-use-engulfing")?.checked ?? true;
+                const useMRB        = document.getElementById("bt-mean-rev-boost")?.checked ?? true;
+
+                // Thresholds
+                const rsi5Bull     = parseFloat(document.getElementById("bt-rsi5-bull")?.value || "55");
+                const rsi5Bear     = parseFloat(document.getElementById("bt-rsi5-bear")?.value || "45");
+                const closeBull    = parseFloat(document.getElementById("bt-close-pos-bull")?.value || "0.65");
+                const closeBear    = parseFloat(document.getElementById("bt-close-pos-bear")?.value || "0.35");
+                const bodyRatio    = parseFloat(document.getElementById("bt-body-ratio")?.value || "0.55");
+                const doji         = parseFloat(document.getElementById("bt-doji")?.value || "0.15");
+                const volRatio     = parseFloat(document.getElementById("bt-vol-ratio")?.value || "1.3");
+                const wickRatio    = parseFloat(document.getElementById("bt-wick-ratio")?.value || "0.3");
+                const consec       = parseInt(document.getElementById("bt-consec")?.value || "4");
+
+                // ── 4. Fill bot creation form fields ─────────────────────────
+                const set = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
+                const setCheck = (id, val) => { const el = document.getElementById(id); if (el) el.checked = val; };
+
+                set("cfg_min_score",           minScore);
+                set("cfg_rsi5_bull",           rsi5Bull);
+                set("cfg_rsi5_bear",           rsi5Bear);
+                set("cfg_close_pos_bull",      closeBull);
+                set("cfg_close_pos_bear",      closeBear);
+                set("cfg_body_ratio",          bodyRatio);
+                set("cfg_doji_threshold",      doji);
+                set("cfg_volume_ratio",        volRatio);
+                set("cfg_wick_ratio",          wickRatio);
+                set("cfg_consecutive_penalty", consec);
+                set("cfg_base_stake",          Math.round(stake * 100));  // cents
+                set("cfg_martingale_mult",     mgMult);
+                set("cfg_max_martingale",      mgMax);
+                set("cfg_limit_price",         limitPrice);
+                set("cfg_limit_expiry",        limitWindow * 60);  // convert min → seconds
+
+                setCheck("cfg_use_close_position",   useClosePos);
+                setCheck("cfg_use_wick_rejection",   useWick);
+                setCheck("cfg_use_body_strength",    useBody);
+                setCheck("cfg_use_rsi5",             useRsi5);
+                setCheck("cfg_use_volume_confirm",   useVolume);
+                setCheck("cfg_use_engulfing",        useEngulfing);
+                setCheck("cfg_mean_reversion_boost", useMRB);
+                setCheck("cfg_use_martingale",       useMartingale);
+                setCheck("cfg_use_limit",            useLimit);
+
+                // ── 5. Scroll to the form & highlight it ─────────────────────
+                setTimeout(() => {
+                    panel?.scrollIntoView({ behavior: "smooth", block: "start" });
+                    // Brief green flash to confirm fields were populated
+                    panel.style.transition = "box-shadow 0.3s";
+                    panel.style.boxShadow = "0 0 0 2px var(--accent-purple)";
+                    setTimeout(() => { panel.style.boxShadow = ""; }, 1800);
+                }, 100);
             }
 
             function btBarHTML(label, val, total, color) {
