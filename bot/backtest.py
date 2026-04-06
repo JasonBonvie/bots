@@ -28,6 +28,7 @@ logger = logging.getLogger(__name__)
 
 # Binance public klines endpoint (no API key required)
 _BINANCE_KLINES = "https://api.binance.com/api/v3/klines"
+_BINANCE_FUNDING = "https://fapi.binance.com/fapi/v1/fundingRate"
 _BINANCE_PAGE_SIZE = 1000  # max candles Binance returns per call
 
 
@@ -126,24 +127,114 @@ class BacktestEngine:
 
         return df
 
+    def fetch_btc_ohlcv_htf(self, interval: str) -> pd.DataFrame:
+        """Fetch higher-timeframe OHLCV (e.g. '1h', '4h') for the backtest window."""
+        p = self.params
+        bar_ms = {"1h": 3_600_000, "4h": 14_400_000}.get(interval, 3_600_000)
+        warmup_bars = 55  # enough for EMA(50) warmup
+        warmup_ms = warmup_bars * bar_ms
+        start_ms = (p.start_ts * 1000) - warmup_ms
+        end_ms = p.end_ts * 1000
+
+        all_records: List[dict] = []
+        cur_start = start_ms
+        while cur_start < end_ms:
+            url = (
+                f"{_BINANCE_KLINES}?symbol=BTCUSDT&interval={interval}"
+                f"&startTime={cur_start}&endTime={end_ms}&limit={_BINANCE_PAGE_SIZE}"
+            )
+            req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+            data = None
+            for attempt in range(3):
+                try:
+                    with urllib.request.urlopen(req, timeout=15) as resp:
+                        data = json.loads(resp.read().decode())
+                    break
+                except Exception as exc:
+                    if attempt == 2:
+                        raise RuntimeError(f"Binance HTF {interval} fetch failed: {exc}") from exc
+                    time.sleep(1.0 * (attempt + 1))
+            if not data or (isinstance(data, dict) and data.get("code")):
+                break
+            for k in data:
+                ts_sec = int(k[0]) // 1000
+                all_records.append({
+                    "timestamp": pd.Timestamp(ts_sec, unit="s", tz="UTC"),
+                    "open": float(k[1]), "high": float(k[2]),
+                    "low": float(k[3]),  "close": float(k[4]),
+                    "volume": float(k[5]),
+                })
+            last_ts = int(data[-1][0])
+            if last_ts + bar_ms >= end_ms:
+                break
+            cur_start = last_ts + bar_ms
+            time.sleep(0.1)
+
+        if not all_records:
+            raise ValueError(f"No HTF {interval} data returned for backtest window")
+        df = pd.DataFrame(all_records)
+        df.set_index("timestamp", inplace=True)
+        df.sort_index(inplace=True)
+        return df[~df.index.duplicated(keep="last")]
+
+    def fetch_funding_rates(self) -> pd.DataFrame:
+        """Fetch historical 8-hour funding rates from Binance Futures for the backtest window."""
+        p = self.params
+        all_records: List[dict] = []
+        cur_start = p.start_ts * 1000
+        end_ms = p.end_ts * 1000
+
+        while cur_start < end_ms:
+            url = (
+                f"{_BINANCE_FUNDING}?symbol=BTCUSDT"
+                f"&startTime={cur_start}&endTime={end_ms}&limit=1000"
+            )
+            req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+            try:
+                with urllib.request.urlopen(req, timeout=10) as resp:
+                    data = json.loads(resp.read().decode())
+            except Exception as e:
+                logger.warning(f"Funding rate fetch failed: {e}")
+                break
+            if not data or (isinstance(data, dict) and data.get("code")):
+                break
+            for item in data:
+                ts_sec = int(item["fundingTime"]) // 1000
+                all_records.append({
+                    "timestamp": pd.Timestamp(ts_sec, unit="s", tz="UTC"),
+                    "fundingRate": float(item["fundingRate"]),
+                })
+            if len(data) < 1000:
+                break
+            cur_start = int(data[-1]["fundingTime"]) + 1
+            time.sleep(0.1)
+
+        if not all_records:
+            return pd.DataFrame(columns=["fundingRate"])
+        df = pd.DataFrame(all_records)
+        df.set_index("timestamp", inplace=True)
+        df.sort_index(inplace=True)
+        return df[~df.index.duplicated(keep="last")]
+
     # ------------------------------------------------------------------
     # Indicator computation (vectorized over full DataFrame)
     # ------------------------------------------------------------------
 
-    def compute_indicators_vectorized(self, df: pd.DataFrame) -> pd.DataFrame:
+    def compute_indicators_vectorized(
+        self,
+        df: pd.DataFrame,
+        df_1h: "pd.DataFrame | None" = None,
+        df_4h: "pd.DataFrame | None" = None,
+        df_funding: "pd.DataFrame | None" = None,
+    ) -> pd.DataFrame:
         """
         Compute next-candle color prediction signals — matches live signals.py exactly.
         Uses the last CLOSED candle (shift by 1) so we're predicting the NEXT candle.
 
-        Signals (5 total, 0-5 score each direction):
-          1. Close Position  — where price closed in the candle range
-          2. Wick Rejection  — wick structure signals continuation or reversal
-          3. Body Strength   — strong body = conviction, doji = skip
-          4. RSI(5)          — short-period momentum
-          5. Volume Confirm  — high volume in candle direction
-
-        Mean reversion penalty: 4+ consecutive same-color candles reduce score by 1.
-        Doji veto: body ratio < threshold → direction = SKIP.
+        Optional extra data:
+          df_1h     — 1h OHLCV for MTF filter (1h EMA21)
+          df_4h     — 4h OHLCV for MTF filter (4h EMA50)
+          df_funding — historical funding rates (8h cadence)
         """
         p = self.params
         df = df.copy()
@@ -224,6 +315,37 @@ class BacktestEngine:
             default="NEUTRAL",
         )
 
+        # ── Session VWAP (reset at UTC midnight) ─────────────────────
+        df["_date"] = df.index.normalize()   # truncate to midnight UTC
+        df["_pv"]   = df["close"] * df["volume"]
+        df["_cum_pv"]  = df.groupby("_date")["_pv"].cumsum()
+        df["_cum_vol"] = df.groupby("_date")["volume"].cumsum()
+        df["vwap"] = (df["_cum_pv"] / df["_cum_vol"].replace(0, np.nan)).fillna(df["close"])
+        df["vwap_dev"] = (df["close"] - df["vwap"]) / df["vwap"] * 100
+        df["s_vwap_dev"] = df["vwap_dev"].shift(1)
+
+        # ── Multi-Timeframe EMAs (1h EMA21 + 4h EMA50) ───────────────
+        # Pre-shift by 1 so we always use the last *fully closed* HTF candle
+        if df_1h is not None:
+            _d1 = df_1h.copy()
+            _d1["ema21_1h"] = ta.ema(_d1["close"], length=21).shift(1)
+            df["ema21_1h"]  = _d1["ema21_1h"].reindex(df.index, method="ffill")
+            df["close_1h"]  = _d1["close"].shift(1).reindex(df.index, method="ffill")
+
+        if df_4h is not None:
+            _d4 = df_4h.copy()
+            _d4["ema50_4h"] = ta.ema(_d4["close"], length=50).shift(1)
+            df["ema50_4h"]  = _d4["ema50_4h"].reindex(df.index, method="ffill")
+            df["close_4h"]  = _d4["close"].shift(1).reindex(df.index, method="ffill")
+
+        # ── Funding rates (forward-fill every 8h) ────────────────────
+        if df_funding is not None and not df_funding.empty:
+            df["funding_rate"] = (
+                df_funding["fundingRate"]
+                .reindex(df.index, method="ffill")
+                .fillna(0.0)
+            )
+
         # ── Vectorized scoring ────────────────────────────────────────
         sc_up = pd.Series(0.0, index=df.index)
         sc_dn = pd.Series(0.0, index=df.index)
@@ -282,6 +404,29 @@ class BacktestEngine:
         if p.mean_reversion_boost:
             sc_dn += penalty_green.astype(float)  # boost bear when green streak ends
             sc_up += penalty_red.astype(float)    # boost bull when red streak ends
+
+        # Signal 8: Multi-Timeframe Filter (1h EMA21 + 4h EMA50)
+        if p.use_mtf_filter and "ema21_1h" in df.columns and "ema50_4h" in df.columns:
+            s_cl1h = df["close_1h"].shift(1)
+            s_cl4h = df["close_4h"].shift(1)
+            s_e21  = df["ema21_1h"].shift(1)
+            s_e50  = df["ema50_4h"].shift(1)
+            htf_bull = (s_cl1h > s_e21) & (s_cl4h > s_e50)
+            htf_bear = (s_cl1h < s_e21) & (s_cl4h < s_e50)
+            sc_up += htf_bull.fillna(False).astype(float)
+            sc_dn += htf_bear.fillna(False).astype(float)
+
+        # Signal 9: VWAP Session Deviation
+        if p.use_vwap_signal:
+            dev = df["s_vwap_dev"]
+            sc_up += (dev <= -p.vwap_dev_pct).fillna(False).astype(float)
+            sc_dn += (dev >=  p.vwap_dev_pct).fillna(False).astype(float)
+
+        # Signal 10: Funding Rate Extremes
+        if p.use_funding_filter and "funding_rate" in df.columns:
+            fr = df["funding_rate"].shift(1).fillna(0.0)
+            sc_up += (fr <= -0.0002).astype(float)   # shorts overextended → bull pressure
+            sc_dn += (fr >=  0.0005).astype(float)   # longs overextended → bear pressure
 
         df["score_up"] = sc_up
         df["score_dn"] = sc_dn
@@ -342,7 +487,22 @@ class BacktestEngine:
         p = self.params
 
         df = df_btc.copy() if df_btc is not None else self.fetch_btc_ohlcv()
-        df = self.compute_indicators_vectorized(df)
+
+        # Fetch higher-TF and funding data if needed (only when not reusing pre-fetched 15m data)
+        _df_1h = _df_4h = _df_funding = None
+        if p.use_mtf_filter:
+            try:
+                _df_1h = self.fetch_btc_ohlcv_htf("1h")
+                _df_4h = self.fetch_btc_ohlcv_htf("4h")
+            except Exception as e:
+                logger.warning(f"HTF fetch failed (MTF signal disabled): {e}")
+        if p.use_funding_filter:
+            try:
+                _df_funding = self.fetch_funding_rates()
+            except Exception as e:
+                logger.warning(f"Funding rate fetch failed (signal disabled): {e}")
+
+        df = self.compute_indicators_vectorized(df, df_1h=_df_1h, df_4h=_df_4h, df_funding=_df_funding)
         df = df.dropna(subset=["s_rsi5", "s_close_position", "s_body_ratio"])
 
         # Trim to requested window (warmup candles were kept for indicator computation)
@@ -441,7 +601,21 @@ class BacktestEngine:
         t0 = time.time()
         p = self.params
 
-        df = self.compute_indicators_vectorized(df_btc)
+        # Fetch higher-TF and funding data if needed
+        _df_1h = _df_4h = _df_funding = None
+        if p.use_mtf_filter:
+            try:
+                _df_1h = self.fetch_btc_ohlcv_htf("1h")
+                _df_4h = self.fetch_btc_ohlcv_htf("4h")
+            except Exception as e:
+                logger.warning(f"HTF fetch failed (MTF signal disabled): {e}")
+        if p.use_funding_filter:
+            try:
+                _df_funding = self.fetch_funding_rates()
+            except Exception as e:
+                logger.warning(f"Funding rate fetch failed (signal disabled): {e}")
+
+        df = self.compute_indicators_vectorized(df_btc, df_1h=_df_1h, df_4h=_df_4h, df_funding=_df_funding)
         df = df.dropna(subset=["macd", "rsi", "ema8", "ema21"])
 
         # Trim to requested window (warmup candles were kept for indicator computation)

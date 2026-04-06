@@ -148,6 +148,10 @@ class SignalScheduler:
                     "use_body_strength": cfg.use_body_strength,
                     "use_rsi5": cfg.use_rsi5,
                     "use_volume_confirm": cfg.use_volume_confirm,
+                    "use_mtf_filter": cfg.use_mtf_filter,
+                    "use_funding_filter": cfg.use_funding_filter,
+                    "use_vwap_signal": cfg.use_vwap_signal,
+                    "vwap_dev_pct": cfg.vwap_dev_pct,
                 }
 
             import functools

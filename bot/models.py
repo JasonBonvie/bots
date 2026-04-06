@@ -49,6 +49,12 @@ class SignalResult(BaseModel):
     # Previous candle info for candle-following strategy
     prev_candle_color: str = "NEUTRAL"  # "GREEN" (bullish), "RED" (bearish), or "NEUTRAL" (doji)
 
+    # New context signal outputs
+    mtf_bias: str = "NEUTRAL"    # "BULL", "BEAR", or "NEUTRAL" — combined 1h/4h EMA context
+    vwap: float = 0.0            # session VWAP price (0.0 if not computed)
+    vwap_dev_pct: float = 0.0    # (close - vwap) / vwap * 100
+    funding_rate: float = 0.0    # perpetual funding rate (0.0 if not fetched)
+
 
 class ConnectionMessage(BaseModel):
     """WebSocket connection status message."""
@@ -133,6 +139,11 @@ class BacktestParams(BaseModel):
     require_prev_candle_match: bool = False  # only trade when signal matches prev candle
     # Limit order ladder (additional tiers below primary limit)
     limit_ladder: List[LimitTier] = []       # empty = no ladder
+    # New context signals (alpha research additions)
+    use_mtf_filter: bool = False      # +1 when 1h EMA(21) + 4h EMA(50) both agree with direction
+    use_funding_filter: bool = False   # +1 when perpetual funding is extreme (fade the crowd)
+    use_vwap_signal: bool = False      # +1 when price is extended from session VWAP
+    vwap_dev_pct: float = 1.5         # % deviation from session VWAP to trigger signal
     # Legacy (kept for API compatibility, not used in scoring)
     require_ema: bool = False
     require_rsi: bool = True

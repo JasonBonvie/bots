@@ -3252,6 +3252,57 @@
                                     </div>
                                 </div>
 
+                                <!-- Signal 8: MTF Filter -->
+                                <div class="bt-signal-card inactive" id="card-mtf">
+                                    <div class="bt-signal-header">
+                                        <label class="strategy-toggle">
+                                            <input type="checkbox" id="bt-use-mtf" onchange="btUpdateCard(this,'card-mtf')" />
+                                            <span class="strategy-slider"></span>
+                                        </label>
+                                        <div>
+                                            <div class="bt-signal-name">MTF Filter <span class="bt-signal-badge">+1</span></div>
+                                            <div class="bt-signal-desc">1h EMA(21) + 4h EMA(50) both align with signal direction</div>
+                                        </div>
+                                    </div>
+                                    <div class="bt-signal-params" style="opacity:0.6;font-size:10px;color:var(--text-muted);padding-left:2px;">Fetches 1h + 4h Binance candles · ~2s extra</div>
+                                </div>
+
+                                <!-- Signal 9: VWAP Deviation -->
+                                <div class="bt-signal-card inactive" id="card-vwap">
+                                    <div class="bt-signal-header">
+                                        <label class="strategy-toggle">
+                                            <input type="checkbox" id="bt-use-vwap" onchange="btUpdateCard(this,'card-vwap')" />
+                                            <span class="strategy-slider"></span>
+                                        </label>
+                                        <div>
+                                            <div class="bt-signal-name">VWAP Deviation <span class="bt-signal-badge">+1</span></div>
+                                            <div class="bt-signal-desc">Price extended from session VWAP → mean reversion signal</div>
+                                        </div>
+                                    </div>
+                                    <div class="bt-signal-params">
+                                        <label class="bt-param-label">
+                                            Dev ≥
+                                            <input type="number" id="bt-vwap-dev" value="1.5" min="0.5" max="5.0" step="0.1" class="bt-param-input" style="width:44px;" />
+                                            <span style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted);">%</span>
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <!-- Signal 10: Funding Rate -->
+                                <div class="bt-signal-card inactive" id="card-funding">
+                                    <div class="bt-signal-header">
+                                        <label class="strategy-toggle">
+                                            <input type="checkbox" id="bt-use-funding" onchange="btUpdateCard(this,'card-funding')" />
+                                            <span class="strategy-slider"></span>
+                                        </label>
+                                        <div>
+                                            <div class="bt-signal-name">Funding Rate <span class="bt-signal-badge">+1</span></div>
+                                            <div class="bt-signal-desc">Extreme perp funding → crowd overextended, fade that side</div>
+                                        </div>
+                                    </div>
+                                    <div class="bt-signal-params" style="opacity:0.6;font-size:10px;color:var(--text-muted);padding-left:2px;">Bear if rate ≥ 0.05%  ·  Bull if rate ≤ −0.02%</div>
+                                </div>
+
                             </div>
                         </div>
 
@@ -5834,7 +5885,7 @@
 
             function btUpdateActiveCount() {
                 // Direct scoring signals (each contributes +1 to score_up or score_dn)
-                const scoringSignals = ["bt-use-close-pos","bt-use-wick","bt-use-body","bt-use-rsi5","bt-use-volume","bt-use-engulfing"];
+                const scoringSignals = ["bt-use-close-pos","bt-use-wick","bt-use-body","bt-use-rsi5","bt-use-volume","bt-use-engulfing","bt-use-mtf","bt-use-vwap","bt-use-funding"];
                 const allToggles = [...scoringSignals, "bt-mean-rev-boost"];
 
                 const activeScoring = scoringSignals.filter(id => {
@@ -5851,7 +5902,7 @@
                 const maxScore = activeScoring + (mrbOn ? 1 : 0);
 
                 const countEl = document.getElementById("bt-active-count");
-                if (countEl) countEl.textContent = `${totalActive} of 7 active`;
+                if (countEl) countEl.textContent = `${totalActive} of 10 active`;
 
                 // Update score options: only show 1..maxScore
                 const sel = document.getElementById("bt-min-score");
@@ -5891,6 +5942,9 @@
                     ["bt-use-volume","card-volume"],
                     ["bt-use-engulfing","card-engulfing"],
                     ["bt-mean-rev-boost","card-meanrev"],
+                    ["bt-use-mtf","card-mtf"],
+                    ["bt-use-vwap","card-vwap"],
+                    ["bt-use-funding","card-funding"],
                 ];
                 map.forEach(([toggleId, cardId]) => {
                     const el = document.getElementById(toggleId);
@@ -5999,6 +6053,10 @@
                     use_volume_confirm: document.getElementById("bt-use-volume").checked,
                     use_engulfing: document.getElementById("bt-use-engulfing").checked,
                     mean_reversion_boost: document.getElementById("bt-mean-rev-boost").checked,
+                    use_mtf_filter: document.getElementById("bt-use-mtf").checked,
+                    use_vwap_signal: document.getElementById("bt-use-vwap").checked,
+                    use_funding_filter: document.getElementById("bt-use-funding").checked,
+                    vwap_dev_pct: parseFloat(document.getElementById("bt-vwap-dev")?.value || "1.5"),
                     use_martingale: document.getElementById("bt-use-martingale").checked,
                     martingale_multiplier: parseFloat(document.getElementById("bt-mg-mult").value || "2.0"),
                     max_martingale_level: parseInt(document.getElementById("bt-mg-max").value || "5"),
@@ -6481,6 +6539,9 @@
                     ["bt-use-volume","card-volume","use_volume_confirm"],
                     ["bt-use-engulfing","card-engulfing","use_engulfing"],
                     ["bt-mean-rev-boost","card-meanrev","mean_reversion_boost"],
+                    ["bt-use-mtf","card-mtf","use_mtf_filter"],
+                    ["bt-use-vwap","card-vwap","use_vwap_signal"],
+                    ["bt-use-funding","card-funding","use_funding_filter"],
                 ];
                 signalMap.forEach(([toggleId, cardId, paramKey]) => {
                     const el = document.getElementById(toggleId);

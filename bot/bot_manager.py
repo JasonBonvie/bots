@@ -159,6 +159,11 @@ class BotConfig(BaseModel):
     use_volume_confirm: bool = True      # Signal 5: volume confirm
     use_engulfing: bool = True           # +1 when candle body fully swallows previous body
     mean_reversion_boost: bool = True    # +1 to opposite direction on streak (not just penalty)
+    # Context signal toggles (alpha research additions)
+    use_mtf_filter: bool = False         # +1 when 1h EMA(21) + 4h EMA(50) agree with direction
+    use_funding_filter: bool = False     # +1 when perpetual funding is extreme (fade the crowd)
+    use_vwap_signal: bool = False        # +1 when price extended from session VWAP
+    vwap_dev_pct: float = 1.5           # % deviation from VWAP to trigger signal
     # Legacy filter toggles (kept for follow_candle mode compatibility)
     require_ema_alignment: bool = False
     require_rsi_zone: bool = True
