@@ -2374,6 +2374,22 @@
                                         />
                                         Expiry (sec)
                                     </label>
+                                    <!-- Ladder tiers -->
+                                    <div style="margin-top:8px;border-top:1px solid var(--border-color);padding-top:8px;">
+                                        <div style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted);margin-bottom:6px;letter-spacing:0.06em;">LADDER TIERS</div>
+                                        <div style="display:grid;grid-template-columns:28px 1fr 1fr 1fr 20px;gap:6px;margin-bottom:4px;">
+                                            <div></div>
+                                            <div style="font-family:var(--font-mono);font-size:9px;color:var(--text-muted);">PRICE ¢</div>
+                                            <div style="font-family:var(--font-mono);font-size:9px;color:var(--text-muted);">WINDOW s</div>
+                                            <div style="font-family:var(--font-mono);font-size:9px;color:var(--text-muted);">STAKE $</div>
+                                            <div></div>
+                                        </div>
+                                        <div id="cfg-ladder-rows" style="display:flex;flex-direction:column;gap:4px;"></div>
+                                        <button onclick="cfgAddLadderTier()"
+                                            style="margin-top:6px;padding:3px 10px;font-family:var(--font-mono);font-size:10px;background:rgba(94,234,212,0.08);border:1px dashed rgba(94,234,212,0.35);border-radius:4px;color:#5eead4;cursor:pointer;">
+                                            + Add Tier
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
 
@@ -4598,6 +4614,22 @@
                                             <input type="number" id="bot-${bot.id}-limit_expiry" value="${bot.config?.limit_order_expiry_seconds || 120}" min="30" max="840" step="30" style="width: 55px; padding: 3px 6px; font-size: 11px; background: var(--bg-stat); border: 1px solid var(--border-color); border-radius: 3px; color: var(--text-primary);" />
                                             Expiry (sec)
                                         </label>
+                                        <!-- Bot ladder tiers -->
+                                        <div style="margin-top:6px;border-top:1px solid var(--border-color);padding-top:6px;">
+                                            <div style="font-family:var(--font-mono);font-size:9px;color:var(--text-muted);margin-bottom:4px;letter-spacing:0.06em;">LADDER TIERS</div>
+                                            <div style="display:grid;grid-template-columns:22px 1fr 1fr 1fr 18px;gap:4px;margin-bottom:3px;">
+                                                <div></div>
+                                                <div style="font-family:var(--font-mono);font-size:9px;color:var(--text-muted);">PRICE ¢</div>
+                                                <div style="font-family:var(--font-mono);font-size:9px;color:var(--text-muted);">WIN sec</div>
+                                                <div style="font-family:var(--font-mono);font-size:9px;color:var(--text-muted);">STAKE $</div>
+                                                <div></div>
+                                            </div>
+                                            <div id="bot-${bot.id}-ladder-rows" style="display:flex;flex-direction:column;gap:3px;"></div>
+                                            <button onclick="botAddLadderTier('${bot.id}')"
+                                                style="margin-top:4px;padding:2px 8px;font-family:var(--font-mono);font-size:9px;background:rgba(94,234,212,0.08);border:1px dashed rgba(94,234,212,0.3);border-radius:3px;color:#5eead4;cursor:pointer;">
+                                                + Add Tier
+                                            </button>
+                                        </div>
                                         <label style="display: flex; align-items: center; gap: 6px; color: var(--text-primary); cursor: pointer;" data-tooltip="⚠️ HIGH RISK: Multiply stake after each loss. Can lead to large losses!">
                                             <input type="checkbox" id="bot-${bot.id}-use_martingale" ${bot.config?.use_martingale ? "checked" : ""} style="accent-color: var(--accent-amber);" />
                                             Martingale
@@ -4630,6 +4662,15 @@
                     `,
                         )
                         .join("");
+
+                    // Seed botLadderTiers from each bot's config (before panels open)
+                    bots.forEach(bot => {
+                        botLadderTiers[bot.id] = (bot.config?.limit_ladder || []).map(t => ({
+                            price_cents: t.price_cents,
+                            window_minutes: t.window_minutes,
+                            stake_dollars: t.stake_dollars,
+                        }));
+                    });
                 }
 
                 // Update positions
@@ -4654,9 +4695,92 @@
                 // Track open panels to prevent auto-refresh while editing
                 if (isOpening) {
                     openConfigPanels.add(botId);
+                    // Render existing ladder tiers (already loaded during updateBotsUI)
+                    botRenderLadderRows(botId);
                 } else {
                     openConfigPanels.delete(botId);
                 }
+            }
+
+            // ── Bot creation form ladder ──────────────────────────────────────
+            function cfgAddLadderTier() {
+                const lastPrice = cfgLadderTiers.length
+                    ? cfgLadderTiers[cfgLadderTiers.length - 1].price_cents
+                    : (parseInt(document.getElementById("cfg_limit_price")?.value || "45"));
+                cfgLadderTiers.push({ price_cents: Math.max(1, lastPrice - 5), window_minutes: 5, stake_dollars: 1.0 });
+                cfgRenderLadderRows();
+            }
+
+            function cfgRemoveLadderTier(idx) {
+                cfgLadderTiers.splice(idx, 1);
+                cfgRenderLadderRows();
+            }
+
+            function cfgRenderLadderRows() {
+                const container = document.getElementById("cfg-ladder-rows");
+                if (!container) return;
+                const inp = (val, w, color, onchange) =>
+                    `<input type="number" value="${val}" style="width:${w};background:transparent;border:1px solid rgba(255,255,255,0.1);border-radius:3px;padding:2px 4px;font-family:var(--font-mono);font-size:11px;color:${color};outline:none;" onchange="${onchange}" />`;
+                container.innerHTML = cfgLadderTiers.map((t, i) => `
+                    <div style="display:grid;grid-template-columns:32px 1fr 1fr 1fr 32px;gap:8px;align-items:center;padding:4px 2px;">
+                        <span style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted);text-align:center;">${i + 1}</span>
+                        <div style="display:flex;align-items:center;gap:4px;">
+                            ${inp(t.price_cents, "56px", "var(--accent-blue)", `cfgLadderTiers[${i}].price_cents=parseInt(this.value)||1`)}
+                            <span style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted);">¢</span>
+                        </div>
+                        <div style="display:flex;align-items:center;gap:4px;">
+                            ${inp(t.window_minutes, "48px", "var(--text-primary)", `cfgLadderTiers[${i}].window_minutes=parseInt(this.value)||1`)}
+                            <span style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted);">min</span>
+                        </div>
+                        <div style="display:flex;align-items:center;gap:4px;">
+                            <span style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted);">$</span>
+                            ${inp(t.stake_dollars, "56px", "var(--accent-green)", `cfgLadderTiers[${i}].stake_dollars=parseFloat(this.value)||0.1`)}
+                        </div>
+                        <button onclick="cfgRemoveLadderTier(${i})"
+                            style="width:22px;height:22px;padding:0;font-family:var(--font-mono);font-size:11px;background:rgba(248,113,113,0.08);border:1px solid rgba(248,113,113,0.25);border-radius:3px;color:var(--accent-red);cursor:pointer;">✕</button>
+                    </div>`).join("");
+            }
+
+            // ── Per-bot edit ladder ───────────────────────────────────────────
+            function botAddLadderTier(botId) {
+                if (!botLadderTiers[botId]) botLadderTiers[botId] = [];
+                const tiers = botLadderTiers[botId];
+                const lastPrice = tiers.length ? tiers[tiers.length - 1].price_cents
+                    : (parseInt(document.getElementById(`bot-${botId}-limit_price`)?.value || "45"));
+                tiers.push({ price_cents: Math.max(1, lastPrice - 5), window_minutes: 5, stake_dollars: 1.0 });
+                botRenderLadderRows(botId);
+            }
+
+            function botRemoveLadderTier(botId, idx) {
+                if (!botLadderTiers[botId]) return;
+                botLadderTiers[botId].splice(idx, 1);
+                botRenderLadderRows(botId);
+            }
+
+            function botRenderLadderRows(botId) {
+                const container = document.getElementById(`bot-${botId}-ladder-rows`);
+                if (!container) return;
+                const tiers = botLadderTiers[botId] || [];
+                const inp = (val, w, color, onchange) =>
+                    `<input type="number" value="${val}" style="width:${w};background:transparent;border:1px solid rgba(255,255,255,0.1);border-radius:3px;padding:2px 4px;font-family:var(--font-mono);font-size:10px;color:${color};outline:none;" onchange="${onchange}" />`;
+                container.innerHTML = tiers.map((t, i) => `
+                    <div style="display:grid;grid-template-columns:24px 1fr 1fr 1fr 24px;gap:6px;align-items:center;padding:3px 2px;">
+                        <span style="font-family:var(--font-mono);font-size:9px;color:var(--text-muted);text-align:center;">${i + 1}</span>
+                        <div style="display:flex;align-items:center;gap:3px;">
+                            ${inp(t.price_cents, "48px", "var(--accent-blue)", `botLadderTiers['${botId}'][${i}].price_cents=parseInt(this.value)||1`)}
+                            <span style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted);">¢</span>
+                        </div>
+                        <div style="display:flex;align-items:center;gap:3px;">
+                            ${inp(t.window_minutes, "42px", "var(--text-primary)", `botLadderTiers['${botId}'][${i}].window_minutes=parseInt(this.value)||1`)}
+                            <span style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted);">min</span>
+                        </div>
+                        <div style="display:flex;align-items:center;gap:3px;">
+                            <span style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted);">$</span>
+                            ${inp(t.stake_dollars, "48px", "var(--accent-green)", `botLadderTiers['${botId}'][${i}].stake_dollars=parseFloat(this.value)||0.1`)}
+                        </div>
+                        <button onclick="botRemoveLadderTier('${botId}', ${i})"
+                            style="width:20px;height:20px;padding:0;font-family:var(--font-mono);font-size:10px;background:rgba(248,113,113,0.08);border:1px solid rgba(248,113,113,0.25);border-radius:3px;color:var(--accent-red);cursor:pointer;">✕</button>
+                    </div>`).join("");
             }
 
             function getCreateBotConfig() {
@@ -4734,6 +4858,11 @@
                     limit_order_expiry_seconds: parseInt(
                         document.getElementById("cfg_limit_expiry").value,
                     ),
+                    limit_ladder: cfgLadderTiers.map(t => ({
+                        price_cents: t.price_cents,
+                        window_minutes: t.window_minutes,
+                        stake_dollars: t.stake_dollars,
+                    })),
                 };
             }
 
@@ -4787,6 +4916,11 @@
                         document.getElementById(`bot-${botId}-limit_expiry`)
                             .value,
                     ),
+                    limit_ladder: (botLadderTiers[botId] || []).map(t => ({
+                        price_cents: t.price_cents,
+                        window_minutes: t.window_minutes,
+                        stake_dollars: t.stake_dollars,
+                    })),
                 };
 
                 try {
@@ -5579,6 +5713,8 @@
 
             // ── Limit ladder ──────────────────────────────────────────────────
             let btLadderTiers = [];  // [{price_cents, window_minutes, stake_dollars}]
+            let cfgLadderTiers = []; // ladder for bot creation form
+            let botLadderTiers = {}; // keyed by botId
 
             function btToggleLadder() {
                 const on = document.getElementById("bt-use-limit").checked;
@@ -6102,6 +6238,10 @@
                 setCheck("cfg_mean_reversion_boost", useMRB);
                 setCheck("cfg_use_martingale",       useMartingale);
                 setCheck("cfg_use_limit",            useLimit);
+
+                // ── Copy ladder tiers ─────────────────────────────────────────
+                cfgLadderTiers = btLadderTiers.map(t => ({ ...t }));
+                cfgRenderLadderRows();
 
                 // ── 5. Scroll to the form & highlight it ─────────────────────
                 setTimeout(() => {
