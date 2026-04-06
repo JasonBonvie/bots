@@ -432,16 +432,23 @@ class BacktestEngine:
         df["score_dn"] = sc_dn
 
         # Doji veto + direction
-        doji = df["s_body_ratio"] < p.doji_threshold
-        df["direction"] = np.select(
-            [
-                doji,
-                (sc_up >= p.min_score) & (sc_up > sc_dn),
-                (sc_dn >= p.min_score) & (sc_dn > sc_up),
-            ],
-            ["SKIP", "UP", "DOWN"],
-            default="SKIP",
-        )
+        if p.strategy_mode == "follow_candle":
+            # Bet the same direction as the last closed candle — no scoring, no veto
+            s_green = df["s_candle_is_green"].fillna(False).astype(bool)
+            df["direction"] = np.where(s_green, "UP", "DOWN")
+            df["score_up"] = np.where(s_green, 1.0, 0.0)
+            df["score_dn"] = np.where(~s_green, 1.0, 0.0)
+        else:
+            doji = df["s_body_ratio"] < p.doji_threshold
+            df["direction"] = np.select(
+                [
+                    doji,
+                    (sc_up >= p.min_score) & (sc_up > sc_dn),
+                    (sc_dn >= p.min_score) & (sc_dn > sc_up),
+                ],
+                ["SKIP", "UP", "DOWN"],
+                default="SKIP",
+            )
 
         # Filter labels for FilterStats
         df["_ema_label"] = np.where(df["ema8"] > df["ema21"], "bull", "bear")

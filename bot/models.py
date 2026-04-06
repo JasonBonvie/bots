@@ -107,6 +107,7 @@ class BacktestParams(BaseModel):
     """Parameters for a backtest run."""
     start_ts: int                        # Unix timestamp (seconds)
     end_ts: int                          # Unix timestamp (seconds)
+    strategy_mode: str = "signals"       # "signals" | "follow_candle"
     min_score: float = 3.0               # 1–5; threshold to take a trade
     entry_price_cents: int = 50          # assumed entry price in btc_only mode (1-99)
     stake_cents: int = 100               # flat risk per trade in cents

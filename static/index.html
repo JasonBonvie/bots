@@ -2999,6 +2999,22 @@
                         <!-- ── Row 1: scalar controls ────────────────────────── -->
                         <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end;">
 
+                            <!-- Strategy mode -->
+                            <div>
+                                <div style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted);margin-bottom:6px;letter-spacing:.05em;">STRATEGY</div>
+                                <div style="display:flex;gap:0;">
+                                    <button id="bt-strat-signals" onclick="btSetStrategyMode('signals')"
+                                        style="padding:6px 14px;font-family:var(--font-mono);font-size:12px;background:var(--accent-green);border:1px solid var(--accent-green);border-radius:4px 0 0 4px;color:#000;cursor:pointer;font-weight:600;">
+                                        📊 Signals
+                                    </button>
+                                    <button id="bt-strat-follow" onclick="btSetStrategyMode('follow_candle')"
+                                        style="padding:6px 14px;font-family:var(--font-mono);font-size:12px;background:var(--bg-stat);border:1px solid var(--border-color);border-left:none;border-radius:0 4px 4px 0;color:var(--text-muted);cursor:pointer;">
+                                        🕯️ Follow Candle
+                                    </button>
+                                </div>
+                                <div id="bt-strat-hint" style="font-family:var(--font-mono);font-size:10px;margin-top:4px;color:var(--text-muted);">uses scoring signals</div>
+                            </div>
+
                             <!-- Date range -->
                             <div>
                                 <div style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted);margin-bottom:6px;letter-spacing:.05em;">DATE RANGE</div>
@@ -3089,7 +3105,7 @@
                         </div><!-- end row 1 -->
 
                         <!-- ── Row 2: Signal Cards ────────────────────────────── -->
-                        <div>
+                        <div id="bt-signals-section">
                             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
                                 <div style="font-family:var(--font-mono);font-size:11px;font-weight:600;color:var(--accent-cyan,#5eead4);letter-spacing:0.05em;">
                                     SIGNALS
@@ -5695,6 +5711,7 @@
             // Backtest Module
             // =====================
             let btRangeDays = 30;
+            let btStrategyMode = "signals";
             let btAllTrades = false;
             let btTradeLog = [];
             let btEquityChart = null;
@@ -5845,6 +5862,33 @@
                 const tierStr = btLadderTiers.map(t => `${t.price_cents}¢`).join(" → ");
                 summary.textContent = `${tierStr}  ·  avg entry ~${avgPrice.toFixed(0)}¢  ·  max $${totalStake.toFixed(2)}/trade`;
                 btSyncLadderPrimary();
+            }
+
+            // Strategy mode toggle (signals vs follow_candle)
+            function btSetStrategyMode(mode) {
+                btStrategyMode = mode;
+                const isFollow = mode === "follow_candle";
+                const sigBtn    = document.getElementById("bt-strat-signals");
+                const followBtn = document.getElementById("bt-strat-follow");
+                const hint      = document.getElementById("bt-strat-hint");
+                const signalSection = document.getElementById("bt-signals-section");
+
+                // Button styling
+                if (isFollow) {
+                    sigBtn.style.cssText    = "padding:6px 14px;font-family:var(--font-mono);font-size:12px;background:var(--bg-stat);border:1px solid var(--border-color);border-radius:4px 0 0 4px;color:var(--text-muted);cursor:pointer;font-weight:400;";
+                    followBtn.style.cssText = "padding:6px 14px;font-family:var(--font-mono);font-size:12px;background:var(--accent-amber);border:1px solid var(--accent-amber);border-left:none;border-radius:0 4px 4px 0;color:#000;cursor:pointer;font-weight:600;";
+                    hint.textContent = "bets same direction as previous candle";
+                } else {
+                    sigBtn.style.cssText    = "padding:6px 14px;font-family:var(--font-mono);font-size:12px;background:var(--accent-green);border:1px solid var(--accent-green);border-radius:4px 0 0 4px;color:#000;cursor:pointer;font-weight:600;";
+                    followBtn.style.cssText = "padding:6px 14px;font-family:var(--font-mono);font-size:12px;background:var(--bg-stat);border:1px solid var(--border-color);border-left:none;border-radius:0 4px 4px 0;color:var(--text-muted);cursor:pointer;font-weight:400;";
+                    hint.textContent = "uses scoring signals";
+                }
+
+                // Dim the signals section when follow_candle is active
+                if (signalSection) {
+                    signalSection.style.opacity = isFollow ? "0.35" : "1";
+                    signalSection.style.pointerEvents = isFollow ? "none" : "";
+                }
             }
 
             // Martingale backtest toggle
@@ -6056,6 +6100,7 @@
                     use_volume_confirm: document.getElementById("bt-use-volume").checked,
                     use_engulfing: document.getElementById("bt-use-engulfing").checked,
                     mean_reversion_boost: document.getElementById("bt-mean-rev-boost").checked,
+                    strategy_mode: btStrategyMode,
                     use_mtf_filter: document.getElementById("bt-use-mtf").checked,
                     use_vwap_signal: document.getElementById("bt-use-vwap").checked,
                     use_funding_filter: document.getElementById("bt-use-funding").checked,
