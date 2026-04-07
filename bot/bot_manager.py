@@ -1280,16 +1280,16 @@ class BotManager:
         """
         config = bot.config
 
-        # Strategy: Follow previous candle color
+        # Strategy: Follow the candle that just closed (signal_candle_color = df.iloc[-2])
         if config.strategy_mode == "follow_candle":
-            if signal.prev_candle_color == "GREEN":
-                logger.debug(f"Bot {bot.name}: Previous candle GREEN → UP")
+            if signal.signal_candle_color == "GREEN":
+                logger.debug(f"Bot {bot.name}: Signal candle GREEN → UP")
                 return "UP"
-            elif signal.prev_candle_color == "RED":
-                logger.debug(f"Bot {bot.name}: Previous candle RED → DOWN")
+            elif signal.signal_candle_color == "RED":
+                logger.debug(f"Bot {bot.name}: Signal candle RED → DOWN")
                 return "DOWN"
             else:
-                logger.debug(f"Bot {bot.name}: Previous candle NEUTRAL → SKIP")
+                logger.debug(f"Bot {bot.name}: Signal candle NEUTRAL (doji) → SKIP")
                 return "SKIP"
 
         # Strategy: Use 4-filter scoring system (default)

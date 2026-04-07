@@ -484,6 +484,7 @@ def compute_signals(
         volume_filter=volume_filter,
         close_pos_filter=close_pos_filter,
         prev_candle_color=prev_candle_color,
+        signal_candle_color="GREEN" if c_close > c_open else ("RED" if c_close < c_open else "NEUTRAL"),
         mtf_bias=htf_bias,
         vwap=round(vwap_price, 2),
         vwap_dev_pct=round(vwap_dev, 2),

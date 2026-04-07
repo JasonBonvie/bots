@@ -47,7 +47,8 @@ class SignalResult(BaseModel):
     close_pos_filter: str  # "BULL", "BEAR", or "NEUTRAL"
 
     # Previous candle info for candle-following strategy
-    prev_candle_color: str = "NEUTRAL"  # "GREEN" (bullish), "RED" (bearish), or "NEUTRAL" (doji)
+    prev_candle_color: str = "NEUTRAL"   # color of df.iloc[-3] (one before the signal candle)
+    signal_candle_color: str = "NEUTRAL" # color of df.iloc[-2] (the candle that JUST closed)
 
     # New context signal outputs
     mtf_bias: str = "NEUTRAL"    # "BULL", "BEAR", or "NEUTRAL" — combined 1h/4h EMA context
