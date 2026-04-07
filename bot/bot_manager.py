@@ -1421,9 +1421,8 @@ class BotManager:
             )
             return contracts
 
-        # Base case: convert base dollar stake to contracts, respect max_position_size
-        contracts = max(1, config.base_stake_cents // price)
-        return min(contracts, config.max_position_size)
+        # Base case: convert base dollar stake to contracts — matches backtest sizing exactly
+        return max(1, config.base_stake_cents // price)
 
     async def sync_kalshi_positions(self) -> int:
         """
