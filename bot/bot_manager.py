@@ -693,6 +693,15 @@ class BotManager:
                 logger.warning(f"Cannot open position: bot {bot_id} not running")
                 return None
 
+            # Guard: don't open a second position for the same market ticker
+            duplicate = any(
+                p.bot_id == bot_id and p.market_ticker == market_ticker
+                for p in self.positions.values()
+            )
+            if duplicate:
+                logger.warning(f"Bot {bot.name}: already has a position in {market_ticker}, skipping")
+                return None
+
             # Check risk limits
             if not await self._check_risk_limits(bot, entry_price_cents * quantity):
                 logger.warning(f"Position blocked by risk limits for bot {bot.name}")
@@ -938,16 +947,9 @@ class BotManager:
                 logger.warning(f"Daily trade limit reached: {bot.daily_trades}")
                 return False
 
-        # Check max position size
-        if config.max_position_size > 0:
-            # Count existing positions for this bot
-            existing_positions = sum(
-                p.quantity for p in self.positions.values()
-                if p.bot_id == bot.id
-            )
-            if existing_positions >= config.max_position_size:
-                logger.warning(f"Max position size reached: {existing_positions}")
-                return False
+        # max_position_size caps contracts *per trade* (enforced in _calculate_stake).
+        # No concurrent-position block here — each Kalshi candle is a different market,
+        # so a position in candle N must not prevent trading candle N+1.
 
         return True
 
