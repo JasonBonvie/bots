@@ -26,9 +26,10 @@ from bot.backtest import BacktestEngine
 from bot.live_price import live_price_feed
 from bot.kalshi_feed import kalshi_feed
 from bot.bot_manager import bot_manager, Bot, BotConfig, BotStatus, PositionSide, OrderStatus, BotLog
+from bot.models import LimitTier
 from bot.database import db
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, List
 import json
 import urllib.request
 import time
@@ -61,6 +62,7 @@ class BotConfigUpdate(BaseModel):
     use_limit_orders: Optional[bool] = None
     limit_price_cents: Optional[int] = None  # 1-99 cents
     limit_order_expiry_seconds: Optional[int] = None  # 0 = no expiry
+    limit_ladder: Optional[List[LimitTier]] = None  # additional limit tiers
 
     # Risk management
     daily_loss_limit_cents: Optional[int] = None
