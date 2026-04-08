@@ -1261,6 +1261,7 @@
                 <button class="tab-btn" data-tab="code">Bot Code</button>
                 <button class="tab-btn" data-tab="backtest">Backtest</button>
                 <button class="tab-btn" data-tab="weather">Weather BT</button>
+                <button class="tab-btn" data-tab="wlive">Weather Live</button>
             </div>
 
             <!-- Tab 1: Strategy -->
@@ -7074,6 +7075,481 @@
             ctx.fillStyle = equities[equities.length - 1] >= 0 ? "rgba(0,230,118,0.08)" : "rgba(255,82,82,0.08)";
             ctx.fill();
         }
+    </script>
+
+    <!-- Tab 7: Weather Live -->
+    <div class="tab-content" id="tab-wlive">
+      <div style="padding:20px;display:flex;flex-direction:column;gap:20px;">
+
+        <!-- Header -->
+        <div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;">
+          <span style="font-size:18px;font-weight:700;color:var(--text-primary);">Weather Live Markets</span>
+          <span style="font-size:12px;color:var(--text-muted);">view all open markets · place bulk limit orders dynamically under current ask</span>
+        </div>
+
+        <!-- Controls row -->
+        <div style="background:var(--bg-panel);border:1px solid var(--border-color);border-radius:6px;padding:16px;display:flex;flex-direction:column;gap:14px;">
+
+          <!-- Row 1: Search -->
+          <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;">
+            <div>
+              <div style="font-size:10px;font-weight:600;color:var(--text-muted);margin-bottom:6px;letter-spacing:.05em;">SEARCH SERIES</div>
+              <div style="display:flex;gap:6px;">
+                <input id="wl-keyword" type="text" value="lowt" placeholder="lowt, hight, prect…"
+                  style="width:130px;padding:6px 8px;font-family:var(--font-mono);font-size:12px;background:var(--bg-stat);border:1px solid var(--border-color);border-radius:3px;color:var(--text-primary);">
+                <button onclick="wlSearchSeries()" style="padding:6px 12px;font-family:var(--font-mono);font-size:11px;font-weight:600;background:var(--bg-stat);border:1px solid var(--border-color);border-radius:3px;color:var(--text-muted);cursor:pointer;">Search Kalshi</button>
+              </div>
+            </div>
+            <!-- Side -->
+            <div>
+              <div style="font-size:10px;font-weight:600;color:var(--text-muted);margin-bottom:6px;letter-spacing:.05em;">SIDE</div>
+              <select id="wl-side" onchange="wlApplyFilter()"
+                style="padding:6px 8px;font-family:var(--font-mono);font-size:12px;background:var(--bg-stat);border:1px solid var(--border-color);border-radius:3px;color:var(--text-primary);">
+                <option value="yes">YES — event happens</option>
+                <option value="no">NO — event doesn't happen</option>
+              </select>
+            </div>
+            <!-- Max ask filter -->
+            <div>
+              <div style="font-size:10px;font-weight:600;color:var(--text-muted);margin-bottom:6px;letter-spacing:.05em;">SHOW MARKETS ≤</div>
+              <div style="display:flex;align-items:center;gap:4px;">
+                <input id="wl-max-ask" type="number" value="20" min="1" max="99" step="1" onchange="wlApplyFilter()"
+                  style="width:60px;padding:6px 8px;font-family:var(--font-mono);font-size:12px;background:var(--bg-stat);border:1px solid var(--border-color);border-radius:3px;color:var(--text-primary);">
+                <span style="font-size:11px;color:var(--text-muted);">¢</span>
+              </div>
+            </div>
+            <!-- Discount below ask -->
+            <div>
+              <div style="font-size:10px;font-weight:600;color:var(--text-muted);margin-bottom:6px;letter-spacing:.05em;">DISCOUNT BELOW ASK</div>
+              <div style="display:flex;align-items:center;gap:4px;">
+                <input id="wl-discount" type="number" value="1" min="0" max="10" step="1" onchange="wlRecalcOrders()"
+                  style="width:60px;padding:6px 8px;font-family:var(--font-mono);font-size:12px;background:var(--bg-stat);border:1px solid var(--border-color);border-radius:3px;color:var(--text-primary);">
+                <span style="font-size:11px;color:var(--text-muted);">¢</span>
+              </div>
+            </div>
+            <!-- Stake -->
+            <div>
+              <div style="font-size:10px;font-weight:600;color:var(--text-muted);margin-bottom:6px;letter-spacing:.05em;">STAKE / MARKET ($)</div>
+              <input id="wl-stake" type="number" value="10" min="1" max="1000" step="1" onchange="wlRecalcOrders()"
+                style="width:75px;padding:6px 8px;font-family:var(--font-mono);font-size:12px;background:var(--bg-stat);border:1px solid var(--border-color);border-radius:3px;color:var(--text-primary);">
+            </div>
+            <!-- Expiry -->
+            <div>
+              <div style="font-size:10px;font-weight:600;color:var(--text-muted);margin-bottom:6px;letter-spacing:.05em;">ORDER EXPIRY</div>
+              <div style="display:flex;align-items:center;gap:4px;">
+                <input id="wl-expiry" type="number" value="120" min="5" max="1440" step="5"
+                  style="width:65px;padding:6px 8px;font-family:var(--font-mono);font-size:12px;background:var(--bg-stat);border:1px solid var(--border-color);border-radius:3px;color:var(--text-primary);">
+                <span style="font-size:11px;color:var(--text-muted);">min</span>
+              </div>
+            </div>
+            <!-- Fetch button -->
+            <button id="wl-fetch-btn" onclick="wlFetchMarkets()"
+              style="padding:8px 18px;font-family:var(--font-mono);font-size:12px;font-weight:700;background:var(--accent-green);border:none;border-radius:4px;color:#000;cursor:pointer;white-space:nowrap;">
+              Fetch Live Markets
+            </button>
+          </div>
+
+          <!-- Row 2: Series chips -->
+          <div id="wl-series-chips" style="display:flex;gap:6px;flex-wrap:wrap;"></div>
+
+          <!-- Row 3: Manual series input -->
+          <div>
+            <div style="font-size:10px;color:var(--text-muted);margin-bottom:4px;">Or enter series tickers manually (comma-separated):</div>
+            <input id="wl-series-manual" type="text" placeholder="KXLOWTNYC,KXLOWTCHI,KXLOWTLAX"
+              style="width:100%;max-width:600px;padding:6px 8px;font-family:var(--font-mono);font-size:11px;background:var(--bg-stat);border:1px solid var(--border-color);border-radius:3px;color:var(--text-primary);">
+          </div>
+        </div>
+
+        <!-- Action bar -->
+        <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+          <button onclick="wlSelectAll(true)" style="padding:6px 12px;font-family:var(--font-mono);font-size:11px;font-weight:600;background:var(--bg-stat);border:1px solid var(--border-color);border-radius:3px;color:var(--text-muted);cursor:pointer;">Select All</button>
+          <button onclick="wlSelectAll(false)" style="padding:6px 12px;font-family:var(--font-mono);font-size:11px;font-weight:600;background:var(--bg-stat);border:1px solid var(--border-color);border-radius:3px;color:var(--text-muted);cursor:pointer;">Deselect All</button>
+          <button onclick="wlAutoSelect()" style="padding:6px 12px;font-family:var(--font-mono);font-size:11px;font-weight:600;background:var(--bg-stat);border:1px solid var(--border-color);border-radius:3px;color:var(--text-muted);cursor:pointer;">Auto-Select Cheap</button>
+          <span style="font-size:12px;color:var(--text-muted);">|</span>
+          <button id="wl-place-btn" onclick="wlPlaceOrders()"
+            style="padding:8px 20px;font-family:var(--font-mono);font-size:13px;font-weight:700;background:#ff9800;border:none;border-radius:4px;color:#000;cursor:pointer;">
+            ⚡ Place Orders (<span id="wl-selected-count">0</span> selected · $<span id="wl-total-cost">0.00</span>)
+          </button>
+          <button onclick="wlRefreshOrders()" style="padding:6px 12px;font-family:var(--font-mono);font-size:11px;background:var(--bg-stat);border:1px solid var(--border-color);border-radius:3px;color:var(--text-muted);cursor:pointer;">↻ Refresh Orders</button>
+          <div id="wl-status" style="font-size:12px;font-family:var(--font-mono);color:var(--text-muted);flex:1;text-align:right;"></div>
+        </div>
+
+        <!-- Markets table -->
+        <div style="background:var(--bg-panel);border:1px solid var(--border-color);border-radius:6px;overflow:hidden;">
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-bottom:1px solid var(--border-color);">
+            <span style="font-size:12px;font-weight:700;color:var(--text-primary);">LIVE MARKETS</span>
+            <span id="wl-market-count" style="font-size:11px;color:var(--text-muted);">—</span>
+          </div>
+          <div style="overflow-x:auto;">
+            <table style="width:100%;border-collapse:collapse;font-size:11px;font-family:var(--font-mono);">
+              <thead>
+                <tr style="background:var(--bg-stat);color:var(--text-muted);font-size:10px;font-weight:600;letter-spacing:.05em;">
+                  <th style="padding:8px 10px;text-align:center;width:30px;"><input type="checkbox" id="wl-check-all" onchange="wlSelectAll(this.checked)" style="cursor:pointer;"></th>
+                  <th style="padding:8px 10px;text-align:left;">MARKET</th>
+                  <th style="padding:8px 10px;text-align:center;">YES BID</th>
+                  <th style="padding:8px 10px;text-align:center;">YES ASK</th>
+                  <th style="padding:8px 10px;text-align:center;">NO ASK</th>
+                  <th style="padding:8px 10px;text-align:center;">VOL</th>
+                  <th style="padding:8px 10px;text-align:center;">CLOSES</th>
+                  <th style="padding:8px 10px;text-align:center;background:rgba(255,152,0,.08);color:#ff9800;">ORDER @</th>
+                  <th style="padding:8px 10px;text-align:center;background:rgba(255,152,0,.08);color:#ff9800;">QTY</th>
+                </tr>
+              </thead>
+              <tbody id="wl-markets-tbody">
+                <tr><td colspan="9" style="padding:30px;text-align:center;color:var(--text-muted);">Search for series and click Fetch Live Markets</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Open Orders panel -->
+        <div style="background:var(--bg-panel);border:1px solid var(--border-color);border-radius:6px;overflow:hidden;">
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-bottom:1px solid var(--border-color);">
+            <span style="font-size:12px;font-weight:700;color:var(--text-primary);">OPEN ORDERS</span>
+            <button onclick="wlCancelAll()" style="padding:4px 10px;font-family:var(--font-mono);font-size:10px;font-weight:600;background:rgba(255,82,82,.15);border:1px solid #ff5252;border-radius:3px;color:#ff5252;cursor:pointer;">Cancel All</button>
+          </div>
+          <div style="overflow-x:auto;">
+            <table style="width:100%;border-collapse:collapse;font-size:11px;font-family:var(--font-mono);">
+              <thead>
+                <tr style="background:var(--bg-stat);color:var(--text-muted);font-size:10px;font-weight:600;letter-spacing:.05em;">
+                  <th style="padding:8px 10px;text-align:left;">TIME</th>
+                  <th style="padding:8px 10px;text-align:left;">MARKET</th>
+                  <th style="padding:8px 10px;text-align:center;">SIDE</th>
+                  <th style="padding:8px 10px;text-align:center;">PRICE</th>
+                  <th style="padding:8px 10px;text-align:center;">QTY</th>
+                  <th style="padding:8px 10px;text-align:center;">FILLED</th>
+                  <th style="padding:8px 10px;text-align:center;">STATUS</th>
+                  <th style="padding:8px 10px;text-align:center;">ACTION</th>
+                </tr>
+              </thead>
+              <tbody id="wl-orders-tbody">
+                <tr><td colspan="8" style="padding:20px;text-align:center;color:var(--text-muted);">No open orders</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <script>
+    // ── Weather Live Dashboard ─────────────────────────────────────────────────
+
+    let wlAllMarkets = [];       // raw market objects from /api/weather/live-markets
+    let wlFilteredMarkets = [];  // after price filter
+    let wlSelectedSeries = [];   // series tickers chosen via chips
+    let wlSeriesPool = [];       // from search
+
+    // Chip toggle
+    function wlToggleChip(ticker, el) {
+        if (wlSelectedSeries.includes(ticker)) {
+            wlSelectedSeries = wlSelectedSeries.filter(t => t !== ticker);
+            el.style.background = 'var(--bg-stat)';
+            el.style.color = 'var(--text-muted)';
+            el.style.borderColor = 'var(--border-color)';
+        } else {
+            wlSelectedSeries.push(ticker);
+            el.style.background = '#00bcd4';
+            el.style.color = '#000';
+            el.style.borderColor = '#00bcd4';
+        }
+        // Update manual input
+        document.getElementById('wl-series-manual').value = wlSelectedSeries.join(',');
+    }
+
+    async function wlSearchSeries() {
+        const kw = document.getElementById('wl-keyword').value.trim() || 'lowt';
+        wlSetStatus('Searching…');
+        try {
+            const r = await fetch(`/api/weather/search?keyword=${encodeURIComponent(kw)}`);
+            const d = await r.json();
+            wlSeriesPool = d.series || [];
+            const chips = document.getElementById('wl-series-chips');
+            chips.innerHTML = wlSeriesPool.map(s =>
+                `<button onclick="wlToggleChip('${s.series_ticker}',this)"
+                  style="padding:4px 10px;font-family:var(--font-mono);font-size:11px;font-weight:600;
+                         background:var(--bg-stat);border:1px solid var(--border-color);border-radius:20px;
+                         color:var(--text-muted);cursor:pointer;white-space:nowrap;">
+                  ${s.series_ticker}
+                </button>`
+            ).join('');
+            wlSetStatus(`${wlSeriesPool.length} series found — click to select`);
+        } catch(e) { wlSetStatus('Search failed: ' + e.message, true); }
+    }
+
+    async function wlFetchMarkets() {
+        const manual = document.getElementById('wl-series-manual').value.trim();
+        const series = manual
+            ? manual.split(',').map(s => s.trim()).filter(Boolean)
+            : wlSelectedSeries;
+        if (!series.length) { wlSetStatus('Select at least one series first.', true); return; }
+
+        const btn = document.getElementById('wl-fetch-btn');
+        btn.textContent = 'Fetching…';
+        btn.disabled = true;
+        wlSetStatus('Fetching live markets…');
+
+        try {
+            const r = await fetch(`/api/weather/live-markets?series=${encodeURIComponent(series.join(','))}`);
+            const d = await r.json();
+            wlAllMarkets = d.markets || [];
+            wlApplyFilter();
+            wlSetStatus(`${wlAllMarkets.length} total markets fetched`);
+        } catch(e) { wlSetStatus('Fetch failed: ' + e.message, true); }
+        finally { btn.textContent = 'Fetch Live Markets'; btn.disabled = false; }
+    }
+
+    function wlApplyFilter() {
+        const side    = document.getElementById('wl-side').value;
+        const maxAsk  = parseInt(document.getElementById('wl-max-ask').value) || 20;
+
+        wlFilteredMarkets = wlAllMarkets.filter(m => {
+            const ask = side === 'yes' ? m.yes_ask_cents : m.no_ask_cents;
+            return ask > 0 && ask <= maxAsk;
+        });
+
+        document.getElementById('wl-market-count').textContent =
+            `${wlFilteredMarkets.length} shown (${wlAllMarkets.length} total)`;
+
+        wlRenderTable();
+        wlRecalcOrders();
+    }
+
+    function wlRenderTable() {
+        const side     = document.getElementById('wl-side').value;
+        const discount = parseInt(document.getElementById('wl-discount').value) || 0;
+        const stake    = parseFloat(document.getElementById('wl-stake').value) || 10;
+        const tbody    = document.getElementById('wl-markets-tbody');
+
+        if (!wlFilteredMarkets.length) {
+            tbody.innerHTML = '<tr><td colspan="9" style="padding:30px;text-align:center;color:var(--text-muted);">No markets in this price range</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = wlFilteredMarkets.map((m, i) => {
+            const ask       = side === 'yes' ? m.yes_ask_cents : m.no_ask_cents;
+            const bid       = side === 'yes' ? m.yes_bid_cents : m.no_bid_cents;
+            const noAsk     = m.no_ask_cents;
+            const orderAt   = Math.max(1, ask - discount);
+            const qty       = Math.max(1, Math.floor((stake * 100) / orderAt));
+            const closeStr  = m.close_time ? m.close_time.replace('T',' ').replace('Z',' UTC').substring(0,19)+' UTC' : '—';
+
+            // Color code the ask cell
+            const askColor  = ask <= 5 ? '#00e676' : ask <= 15 ? '#ff9800' : '#ffeb3b';
+            const title     = (m.title || m.ticker).substring(0, 60);
+
+            return `<tr id="wlr-${i}" style="border-bottom:1px solid var(--border-color);cursor:pointer;" onclick="wlToggleRow(${i})">
+              <td style="padding:8px 10px;text-align:center;">
+                <input type="checkbox" class="wl-row-check" data-idx="${i}" onchange="wlRecalcOrders()" onclick="event.stopPropagation()">
+              </td>
+              <td style="padding:8px 10px;max-width:320px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${m.title || m.ticker}">
+                <span style="color:var(--text-primary)">${title}…</span>
+                <span style="color:var(--text-muted);font-size:10px;margin-left:6px;">${m._series || ''}</span>
+              </td>
+              <td style="padding:8px 10px;text-align:center;color:var(--text-muted);">${bid}¢</td>
+              <td style="padding:8px 10px;text-align:center;font-weight:700;color:${askColor};">${ask}¢</td>
+              <td style="padding:8px 10px;text-align:center;color:var(--text-muted);">${noAsk}¢</td>
+              <td style="padding:8px 10px;text-align:center;color:var(--text-muted);">${Math.round(parseFloat(m.volume_fp||0))}</td>
+              <td style="padding:8px 10px;text-align:center;color:var(--text-muted);font-size:10px;">${closeStr}</td>
+              <td style="padding:8px 10px;text-align:center;font-weight:700;color:#ff9800;background:rgba(255,152,0,.05);">${orderAt}¢</td>
+              <td style="padding:8px 10px;text-align:center;color:#ff9800;background:rgba(255,152,0,.05);">${qty}</td>
+            </tr>`;
+        }).join('');
+    }
+
+    function wlToggleRow(i) {
+        const cb = document.querySelector(`.wl-row-check[data-idx="${i}"]`);
+        if (cb) { cb.checked = !cb.checked; wlRecalcOrders(); }
+    }
+
+    function wlSelectAll(checked) {
+        document.querySelectorAll('.wl-row-check').forEach(cb => cb.checked = checked);
+        const master = document.getElementById('wl-check-all');
+        if (master) master.checked = checked;
+        wlRecalcOrders();
+    }
+
+    function wlAutoSelect() {
+        // Select all rows in the current filtered view
+        document.querySelectorAll('.wl-row-check').forEach(cb => cb.checked = true);
+        const master = document.getElementById('wl-check-all');
+        if (master) master.checked = true;
+        wlRecalcOrders();
+    }
+
+    function wlRecalcOrders() {
+        const discount = parseInt(document.getElementById('wl-discount').value) || 0;
+        const stake    = parseFloat(document.getElementById('wl-stake').value) || 10;
+        const side     = document.getElementById('wl-side').value;
+
+        const checks = document.querySelectorAll('.wl-row-check');
+        let totalCost = 0;
+        let count = 0;
+        checks.forEach(cb => {
+            if (!cb.checked) return;
+            const i   = parseInt(cb.dataset.idx);
+            const m   = wlFilteredMarkets[i];
+            if (!m) return;
+            const ask     = side === 'yes' ? m.yes_ask_cents : m.no_ask_cents;
+            const orderAt = Math.max(1, ask - discount);
+            const qty     = Math.max(1, Math.floor((stake * 100) / orderAt));
+            totalCost += (orderAt * qty) / 100;
+            count++;
+        });
+
+        document.getElementById('wl-selected-count').textContent = count;
+        document.getElementById('wl-total-cost').textContent = totalCost.toFixed(2);
+
+        // Refresh order-at column in visible rows (discount may have changed)
+        wlRenderTable();
+        // Re-check the checkboxes that were checked (render wipes state)
+        const newChecks = document.querySelectorAll('.wl-row-check');
+        newChecks.forEach((cb, j) => {
+            // We stored which indices were checked before; just reapply
+            cb.checked = j < checks.length ? checks[j].checked : false;
+        });
+        // Recount after re-render
+        let tc2 = 0, c2 = 0;
+        document.querySelectorAll('.wl-row-check').forEach(cb => {
+            if (!cb.checked) return;
+            const i   = parseInt(cb.dataset.idx);
+            const m   = wlFilteredMarkets[i];
+            if (!m) return;
+            const ask     = side === 'yes' ? m.yes_ask_cents : m.no_ask_cents;
+            const orderAt = Math.max(1, ask - discount);
+            const qty     = Math.max(1, Math.floor((stake * 100) / orderAt));
+            tc2 += (orderAt * qty) / 100;
+            c2++;
+        });
+        document.getElementById('wl-selected-count').textContent = c2;
+        document.getElementById('wl-total-cost').textContent = tc2.toFixed(2);
+    }
+
+    async function wlPlaceOrders() {
+        const discount     = parseInt(document.getElementById('wl-discount').value) || 0;
+        const stake        = parseFloat(document.getElementById('wl-stake').value) || 10;
+        const side         = document.getElementById('wl-side').value;
+        const expiryMin    = parseInt(document.getElementById('wl-expiry').value) || 120;
+
+        const orders = [];
+        document.querySelectorAll('.wl-row-check').forEach(cb => {
+            if (!cb.checked) return;
+            const i   = parseInt(cb.dataset.idx);
+            const m   = wlFilteredMarkets[i];
+            if (!m) return;
+            const ask     = side === 'yes' ? m.yes_ask_cents : m.no_ask_cents;
+            const orderAt = Math.max(1, ask - discount);
+            const qty     = Math.max(1, Math.floor((stake * 100) / orderAt));
+            orders.push({ ticker: m.ticker, side, price_cents: orderAt, count: qty });
+        });
+
+        if (!orders.length) { wlSetStatus('No markets selected.', true); return; }
+
+        const btn = document.getElementById('wl-place-btn');
+        btn.disabled = true;
+        wlSetStatus(`Placing ${orders.length} orders…`);
+
+        try {
+            const r = await fetch('/api/weather/bulk-orders', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ orders, expiry_minutes: expiryMin })
+            });
+            const d = await r.json();
+            const ok = d.placed || 0;
+            const fail = d.failed || 0;
+            wlSetStatus(`✅ Placed ${ok} orders${fail ? ` · ❌ ${fail} failed` : ''}`);
+            // Show any failures inline
+            if (d.results) {
+                d.results.filter(x => x.status === 'failed').forEach(x => {
+                    console.warn('Order failed:', x);
+                });
+            }
+            // Refresh open orders panel
+            setTimeout(wlRefreshOrders, 800);
+        } catch(e) { wlSetStatus('Place orders failed: ' + e.message, true); }
+        finally { btn.disabled = false; }
+    }
+
+    async function wlRefreshOrders() {
+        try {
+            const r = await fetch('/api/weather/open-orders');
+            const d = await r.json();
+            const orders = d.orders || [];
+            const tbody = document.getElementById('wl-orders-tbody');
+
+            if (!orders.length) {
+                tbody.innerHTML = '<tr><td colspan="8" style="padding:20px;text-align:center;color:var(--text-muted);">No open orders</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = orders.map(o => {
+                const oid      = o.order_id || o.id || '';
+                const ticker   = o.ticker || '—';
+                const side     = (o.side || '').toUpperCase();
+                const price    = o.yes_price || o.no_price || 0;
+                const qty      = o.count || 0;
+                const filled   = o.filled_count || o.filled_quantity || 0;
+                const status   = o.status || 'resting';
+                const created  = o.created_time ? o.created_time.substring(0,16).replace('T',' ') : '—';
+                const sideColor= side === 'YES' ? '#00e676' : '#ff9800';
+                return `<tr style="border-bottom:1px solid var(--border-color);">
+                  <td style="padding:7px 10px;color:var(--text-muted);font-size:10px;">${created}</td>
+                  <td style="padding:7px 10px;color:var(--text-primary);max-width:280px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${ticker}">${ticker}</td>
+                  <td style="padding:7px 10px;text-align:center;font-weight:700;color:${sideColor};">${side}</td>
+                  <td style="padding:7px 10px;text-align:center;color:var(--text-primary);">${price}¢</td>
+                  <td style="padding:7px 10px;text-align:center;color:var(--text-primary);">${qty}</td>
+                  <td style="padding:7px 10px;text-align:center;color:${filled>0?'#00e676':'var(--text-muted)'};">${filled}</td>
+                  <td style="padding:7px 10px;text-align:center;">
+                    <span style="font-size:10px;padding:2px 7px;border-radius:10px;background:rgba(255,152,0,.15);color:#ff9800;">${status}</span>
+                  </td>
+                  <td style="padding:7px 10px;text-align:center;">
+                    <button onclick="wlCancelOne('${oid}')"
+                      style="padding:3px 8px;font-family:var(--font-mono);font-size:10px;background:rgba(255,82,82,.15);border:1px solid #ff5252;border-radius:3px;color:#ff5252;cursor:pointer;">
+                      Cancel
+                    </button>
+                  </td>
+                </tr>`;
+            }).join('');
+        } catch(e) { console.error('Refresh orders failed:', e); }
+    }
+
+    async function wlCancelOne(orderId) {
+        wlSetStatus(`Cancelling ${orderId}…`);
+        try {
+            const r = await fetch(`/api/weather/orders/${encodeURIComponent(orderId)}`, { method: 'DELETE' });
+            const d = await r.json();
+            wlSetStatus(d.cancelled ? '✅ Order cancelled' : '❌ Cancel failed');
+            setTimeout(wlRefreshOrders, 500);
+        } catch(e) { wlSetStatus('Cancel failed: ' + e.message, true); }
+    }
+
+    async function wlCancelAll() {
+        if (!confirm('Cancel ALL open orders?')) return;
+        wlSetStatus('Cancelling all orders…');
+        try {
+            const r = await fetch('/api/weather/cancel-all-orders', { method: 'POST' });
+            const d = await r.json();
+            wlSetStatus(`✅ Cancelled ${d.cancelled} orders${d.errors?.length ? ` · ${d.errors.length} errors` : ''}`);
+            setTimeout(wlRefreshOrders, 600);
+        } catch(e) { wlSetStatus('Cancel all failed: ' + e.message, true); }
+    }
+
+    function wlSetStatus(msg, isErr = false) {
+        const el = document.getElementById('wl-status');
+        el.textContent = msg;
+        el.style.color = isErr ? '#ff5252' : 'var(--text-muted)';
+    }
+
+    // Auto-load open orders when tab is first shown
+    document.addEventListener('DOMContentLoaded', () => {
+        document.querySelectorAll('.tab-btn[data-tab="wlive"]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                wlRefreshOrders();
+                if (!wlSeriesPool.length) wlSearchSeries();
+            });
+        });
+    });
     </script>
 
     <!-- Floating param tooltip -->

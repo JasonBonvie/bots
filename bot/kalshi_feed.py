@@ -840,6 +840,67 @@ class KalshiClient:
             logger.error(f"Error in batch cancel: {e}")
             return {"error": str(e)}
 
+    async def get_live_markets(
+        self,
+        series_tickers: List[str],
+        limit: int = 200,
+    ) -> List[Dict]:
+        """
+        Fetch all currently open/active markets for a list of series tickers.
+
+        Returns list of market dicts enriched with derived cent prices:
+            yes_bid_cents, yes_ask_cents, no_bid_cents, no_ask_cents
+        """
+        await self._ensure_session()
+        all_markets: List[Dict] = []
+
+        def _dc(v) -> int:
+            """Dollar string → cents int, clamped 0-100."""
+            try:
+                return max(0, min(100, int(round(float(v) * 100))))
+            except (TypeError, ValueError):
+                return 0
+
+        for series in series_tickers:
+            cursor = ""
+            while True:
+                path = "/trade-api/v2/markets"
+                params: Dict = {
+                    "series_ticker": series,
+                    "status": "open",
+                    "limit": limit,
+                }
+                if cursor:
+                    params["cursor"] = cursor
+
+                url = f"{self.base_url.replace('/trade-api/v2', '')}{path}"
+                headers = self._get_auth_headers("GET", path)
+
+                try:
+                    async with self._session.get(url, headers=headers, params=params) as resp:
+                        if resp.status != 200:
+                            logger.warning(f"get_live_markets {series} status {resp.status}")
+                            break
+                        data = await resp.json()
+                        markets = data.get("markets", [])
+                        for m in markets:
+                            m["_series"] = series
+                            m["yes_bid_cents"] = _dc(m.get("yes_bid_dollars", 0))
+                            m["yes_ask_cents"] = _dc(m.get("yes_ask_dollars", 0))
+                            # NO ask ≈ 100 − YES bid (binary market parity)
+                            m["no_ask_cents"] = max(1, 100 - m["yes_bid_cents"]) if m["yes_bid_cents"] else 0
+                            m["no_bid_cents"] = max(0, 100 - m["yes_ask_cents"]) if m["yes_ask_cents"] else 0
+                        all_markets.extend(markets)
+                        cursor = data.get("cursor", "")
+                        if not cursor or len(markets) < limit:
+                            break
+                except Exception as exc:
+                    logger.error(f"Error fetching live markets for {series}: {exc}")
+                    break
+
+        logger.info(f"Fetched {len(all_markets)} live markets across {len(series_tickers)} series")
+        return all_markets
+
     async def get_portfolio_settlements(self, limit: int = 100) -> List[Dict]:
         """
         Get settlement history for positions that have resolved.

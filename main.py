@@ -971,6 +971,136 @@ async def run_weather_backtest(params: WeatherBacktestParams):
         raise HTTPException(status_code=500, detail=f"Weather backtest failed: {str(exc)}")
 
 
+# ── Weather Live Dashboard ──────────────────────────────────────────────────
+
+class SingleOrderReq(BaseModel):
+    ticker: str
+    side: str          # "yes" | "no"
+    price_cents: int   # limit price 1-99
+    count: int         # contracts
+
+class BulkOrderReq(BaseModel):
+    orders: List[SingleOrderReq]
+    expiry_minutes: int = 120   # cancel unfilled orders after this many minutes
+
+
+@app.get("/api/weather/live-markets")
+async def get_live_markets(series: str):
+    """
+    Fetch all currently open Kalshi markets for a comma-separated list of series tickers.
+    Returns prices in cents plus derived no_ask_cents.
+    e.g. /api/weather/live-markets?series=KXLOWTNYC,KXLOWTCHI,KXLOWTLAX
+    """
+    if not kalshi_feed.client:
+        raise HTTPException(status_code=400, detail="Kalshi client not configured.")
+    tickers = [s.strip() for s in series.split(",") if s.strip()]
+    if not tickers:
+        raise HTTPException(status_code=400, detail="Provide at least one series ticker.")
+    try:
+        markets = await kalshi_feed.client.get_live_markets(tickers)
+        return {"count": len(markets), "markets": markets}
+    except Exception as exc:
+        logger.error(f"live-markets error: {exc}")
+        raise HTTPException(status_code=500, detail=str(exc))
+
+
+@app.post("/api/weather/bulk-orders")
+async def place_bulk_orders(req: BulkOrderReq):
+    """
+    Place multiple limit orders at once across weather markets.
+    Each order specifies ticker, side, price_cents, and count.
+    Orders expire after req.expiry_minutes if unfilled.
+    """
+    if not kalshi_feed.client:
+        raise HTTPException(status_code=400, detail="Kalshi client not configured.")
+
+    from datetime import datetime, timezone, timedelta
+    expiry_ts = int((datetime.now(timezone.utc) + timedelta(minutes=req.expiry_minutes)).timestamp())
+
+    results = []
+    placed = 0
+    failed = 0
+
+    for o in req.orders:
+        price = max(1, min(99, o.price_cents))
+        count = max(1, o.count)
+        side = o.side.lower()
+
+        kwargs = dict(
+            ticker=o.ticker,
+            side=side,
+            action="buy",
+            count=count,
+            type="limit",
+            expiration_ts=expiry_ts,
+        )
+        if side == "yes":
+            kwargs["yes_price"] = price
+        else:
+            kwargs["no_price"] = price
+
+        result = await kalshi_feed.client.place_order(**kwargs)
+        if result and "error" not in result:
+            placed += 1
+            results.append({"ticker": o.ticker, "side": side, "price": price,
+                            "count": count, "status": "placed",
+                            "order_id": result.get("order_id", "")})
+        else:
+            failed += 1
+            err = result.get("error", "unknown") if result else "no response"
+            results.append({"ticker": o.ticker, "side": side, "price": price,
+                            "count": count, "status": "failed", "error": err})
+
+    return {"placed": placed, "failed": failed, "results": results}
+
+
+@app.get("/api/weather/open-orders")
+async def get_open_weather_orders():
+    """Return all resting (unfilled) orders from the portfolio."""
+    if not kalshi_feed.client:
+        raise HTTPException(status_code=400, detail="Kalshi client not configured.")
+    try:
+        orders = await kalshi_feed.client.get_orders(status="resting", limit=200)
+        return {"count": len(orders), "orders": orders}
+    except Exception as exc:
+        logger.error(f"open-orders error: {exc}")
+        raise HTTPException(status_code=500, detail=str(exc))
+
+
+@app.delete("/api/weather/orders/{order_id}")
+async def cancel_weather_order(order_id: str):
+    """Cancel a single open order by ID."""
+    if not kalshi_feed.client:
+        raise HTTPException(status_code=400, detail="Kalshi client not configured.")
+    ok = await kalshi_feed.client.cancel_order(order_id)
+    return {"cancelled": ok, "order_id": order_id}
+
+
+@app.post("/api/weather/cancel-all-orders")
+async def cancel_all_weather_orders():
+    """Cancel ALL currently resting orders in the portfolio."""
+    if not kalshi_feed.client:
+        raise HTTPException(status_code=400, detail="Kalshi client not configured.")
+    try:
+        # Fetch all resting orders then cancel each (batch endpoint unreliable)
+        orders = await kalshi_feed.client.get_orders(status="resting", limit=500)
+        cancelled = 0
+        errors = []
+        for o in orders:
+            oid = o.get("order_id") or o.get("id", "")
+            if not oid:
+                continue
+            ok = await kalshi_feed.client.cancel_order(oid)
+            if ok:
+                cancelled += 1
+            else:
+                errors.append(oid)
+        return {"cancelled": cancelled, "errors": errors}
+    except Exception as exc:
+        logger.error(f"cancel-all-orders error: {exc}")
+        raise HTTPException(status_code=500, detail=str(exc))
+
+
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     """
