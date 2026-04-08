@@ -904,6 +904,31 @@ async def weather_candle_debug(ticker: str):
     return {"ticker": ticker, **results}
 
 
+@app.get("/api/weather/market_debug")
+async def weather_market_debug(series: str, limit: int = 3):
+    """
+    Show raw settled market objects (all fields) for a series.
+    Use to discover price fields available on settled weather markets.
+    e.g. /api/weather/market_debug?series=KXLOWTMIA&limit=3
+    """
+    if not kalshi_feed.client:
+        raise HTTPException(status_code=400, detail="Kalshi client not configured.")
+    from datetime import datetime, timezone, timedelta
+    now = datetime.now(timezone.utc)
+    markets = await kalshi_feed.client.get_settled_markets(
+        series_ticker=series,
+        min_close_ts=int((now - timedelta(days=30)).timestamp()),
+        max_close_ts=int(now.timestamp()),
+        limit=limit,
+    )
+    return {
+        "series": series,
+        "count": len(markets),
+        "markets": markets[:limit],
+        "sample_keys": list(markets[0].keys()) if markets else [],
+    }
+
+
 @app.get("/api/weather/search")
 async def search_weather_series(keyword: str = "weather"):
     """
