@@ -6692,10 +6692,11 @@
                 <!-- Bet Side -->
                 <div>
                     <div style="font-size:10px;font-weight:600;color:var(--text-muted);margin-bottom:6px;letter-spacing:0.05em;">BET SIDE</div>
-                    <select id="wbt-side" style="padding:6px 8px;font-family:var(--font-mono);font-size:11px;background:var(--bg-stat);border:1px solid var(--border-color);border-radius:3px;color:var(--text-primary);">
+                    <select id="wbt-side" onchange="wbtUpdateSideHint()" style="padding:6px 8px;font-family:var(--font-mono);font-size:11px;background:var(--bg-stat);border:1px solid var(--border-color);border-radius:3px;color:var(--text-primary);">
                         <option value="yes">YES — event happens</option>
                         <option value="no">NO — event doesn't happen</option>
                     </select>
+                    <div id="wbt-side-hint" style="font-size:10px;color:var(--text-muted);margin-top:3px;max-width:220px;">cheap when the event is unlikely</div>
                 </div>
 
                 <!-- Stake -->
@@ -6867,6 +6868,15 @@
             }
         }
 
+        function wbtUpdateSideHint() {
+            const side = document.getElementById("wbt-side").value;
+            const hint = document.getElementById("wbt-side-hint");
+            if (!hint) return;
+            hint.textContent = side === "yes"
+                ? "cheap when the event is unlikely (e.g. snow in July)"
+                : "cheap when the event is almost certain (e.g. rain in Seattle) — try HIGHT/PRECT series";
+        }
+
         function wbtSetRange(days) {
             wbtRangedays = days;
             [7, 30, 90].forEach(d => {
@@ -6934,12 +6944,18 @@
                 }
                 const r = await resp.json();
                 wbtRenderResults(r);
-                // Show per-series market counts + no-price skips
+                // Show diagnostic breakdown so user can see exactly why trades were/weren't taken
                 if (r.series_counts && Object.keys(r.series_counts).length) {
                     const parts = Object.entries(r.series_counts).map(([s, n]) => `${s}: ${n}`);
-                    let msg = `Markets found — ${parts.join(" | ")}`;
-                    if (r.no_price_count > 0) {
-                        msg += ` | ⚠️ ${r.no_price_count} skipped (no candlestick price)`;
+                    let msg = `Scanned: ${parts.join(" | ")}`;
+                    if (r.no_price_count > 0)
+                        msg += ` | ⚠️ ${r.no_price_count} no-price`;
+                    if (r.price_filtered_count > 0) {
+                        const side = document.getElementById("wbt-side").value;
+                        const hint = side === "no"
+                            ? ` (NO is expensive here — try series where YES is very likely, or raise Max Entry)`
+                            : ` (YES priced above your max — lower Max Entry or try different series)`;
+                        msg += ` | 🚫 ${r.price_filtered_count} outside entry window${r.trades_taken === 0 ? hint : ""}`;
                     }
                     status.textContent = msg;
                 } else {

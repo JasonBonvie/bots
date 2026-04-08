@@ -323,5 +323,6 @@ class WeatherBacktestResult(BaseModel):
     max_drawdown_cents: int = 0
     series_counts: dict = {}       # {series_ticker: markets_found}
     no_price_count: int = 0        # markets skipped because candlestick price unavailable
+    price_filtered_count: int = 0  # markets skipped because price outside min/max window
     equity_curve: List[EquityPoint] = []
     trade_log: List[WeatherTradeRecord] = []

@@ -56,6 +56,7 @@ class WeatherBacktestEngine:
         # Track how many markets were fetched per series
         series_counts = {}
         no_price_count = 0
+        price_filtered_count = 0
         for m in all_markets:
             s = m.get("_series", "unknown")
             series_counts[s] = series_counts.get(s, 0) + 1
@@ -79,9 +80,8 @@ class WeatherBacktestEngine:
                 continue
 
             # Filter by probability window
-            if entry_price > p.max_entry_cents:
-                continue
-            if entry_price < p.min_entry_cents:
+            if entry_price > p.max_entry_cents or entry_price < p.min_entry_cents:
+                price_filtered_count += 1
                 continue
 
             won = (result == p.bet_side)
@@ -143,6 +143,7 @@ class WeatherBacktestEngine:
         return WeatherBacktestResult(
             series_counts=series_counts,
             no_price_count=no_price_count,
+            price_filtered_count=price_filtered_count,
             total_markets_checked=total_markets_checked,
             trades_taken=len(trades),
             wins=wins,
