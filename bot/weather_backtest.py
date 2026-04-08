@@ -2,8 +2,13 @@
 Weather Prediction Market Backtester
 
 Strategy: consistently bet on low-probability events across daily weather markets.
-For each settled market in the date range whose opening price is at or below
+For each settled market in the date range whose pre-settlement price is at or below
 max_entry_cents, simulate a buy on the configured side and track outcome at settlement.
+
+Price source: Kalshi's `previous_yes_ask_dollars` / `previous_yes_bid_dollars` fields
+on the settled market object (candlestick history is not available for weather markets).
+  - YES side entry: previous_yes_ask_dollars × 100
+  - NO  side entry: 100 − (previous_yes_bid_dollars × 100)   [NO ask ≈ 100 − YES bid]
 """
 
 import logging
@@ -54,7 +59,7 @@ class WeatherBacktestEngine:
         total_markets_checked = len(all_markets)
 
         # Track how many markets were fetched per series
-        series_counts = {}
+        series_counts: Dict[str, int] = {}
         no_price_count = 0
         price_filtered_count = 0
         for m in all_markets:
@@ -71,12 +76,14 @@ class WeatherBacktestEngine:
             if not ticker or result not in ("yes", "no"):
                 continue
 
-            # Get entry price from market open (first hourly candle)
-            close_ts = _parse_ts(close_time)
-            market_open_ts = close_ts - 86400  # look back up to 24h
-            entry_price = await self._get_open_price(ticker, p.bet_side, market_open_ts, close_ts)
+            # Get entry price from previous_yes_ask / previous_yes_bid fields.
+            # These are the last-known prices before settlement — the best proxy
+            # available since Kalshi does not retain candlestick history for
+            # settled weather markets.
+            entry_price = self._extract_entry_price(market, p.bet_side)
             if entry_price is None:
                 no_price_count += 1
+                logger.debug(f"No price available for {ticker} — skipping")
                 continue
 
             # Filter by probability window
@@ -98,6 +105,7 @@ class WeatherBacktestEngine:
             pnl = (exit_price - entry_price) * qty
             equity += pnl
 
+            close_ts = _parse_ts(close_time)
             equity_curve.append(EquityPoint(time=close_ts, equity=equity))
 
             trades.append(WeatherTradeRecord(
@@ -158,78 +166,47 @@ class WeatherBacktestEngine:
             trade_log=trades,
         )
 
-    async def _get_open_price(
-        self,
-        ticker: str,
-        side: str,
-        start_ts: int,
-        end_ts: int,
-    ) -> Optional[int]:
+    def _extract_entry_price(self, market: Dict, side: str) -> Optional[int]:
         """
-        Get the opening ask price for the configured side from the first candle.
+        Extract the best-available entry price from the settled market object.
 
-        Tries multiple candlestick fields in priority order:
-          1. yes_ask.open / no_ask.open  (BTC-style markets)
-          2. price.open                  (weather / daily event markets)
-          3. yes_bid.open → infer no price as 100 - yes_bid
-        Returns None only if no candlestick data is returned at all.
+        Uses `previous_yes_ask_dollars` / `previous_yes_bid_dollars` — the last
+        known pre-settlement prices that Kalshi includes in the settled market dict.
+
+        YES side: entry = previous_yes_ask × 100
+        NO  side: entry = 100 − (previous_yes_bid × 100)
+                  (NO ask ≈ 100 − YES bid in a binary market)
+
+        Falls back to `previous_price_dollars` if ask/bid fields are missing.
+        Returns None only if no price field is present at all.
         """
-        try:
-            candles = await self._client.get_historical_candlesticks(
-                ticker, start_ts=start_ts, end_ts=end_ts, period_interval=60
-            )
-            if not candles:
+        def _to_cents(field: str) -> Optional[int]:
+            v = market.get(field)
+            if v is None:
+                return None
+            try:
+                f = float(v)
+                # Kalshi returns dollar strings like "0.0100"; multiply by 100
+                cents = int(round(f * 100)) if f <= 1.0 else int(round(f))
+                return max(1, min(99, cents))
+            except (ValueError, TypeError):
                 return None
 
-            first = candles[0]
-
-            def _cents(obj: dict, *keys) -> Optional[int]:
-                """
-                Extract a price in cents from a candlestick field dict.
-                Handles both dollar format (0.0–1.0) and cent format (1–99).
-                Kalshi weather markets use cent integers; BTC markets use dollar floats.
-                """
-                for k in keys:
-                    v = obj.get(k)
-                    if v is not None:
-                        try:
-                            f = float(v)
-                            # If value is already in cents range, use directly
-                            cents = int(round(f)) if f > 1.0 else int(round(f * 100))
-                            return max(1, min(99, cents))
-                        except (ValueError, TypeError):
-                            pass
-                return None
-
-            if side == "yes":
-                ask = first.get("yes_ask") or {}
-                price = _cents(ask, "open_dollars", "open")
-                if price is None:
-                    # try generic price field
-                    pr = first.get("price") or {}
-                    price = _cents(pr, "open_dollars", "open")
-                if price is None:
-                    bid = first.get("yes_bid") or {}
-                    price = _cents(bid, "open_dollars", "open")
-            else:
-                # NO side: try no_ask, then infer from yes_bid (no_price ≈ 100 - yes_bid)
-                ask = first.get("no_ask") or {}
-                price = _cents(ask, "open_dollars", "open")
-                if price is None:
-                    pr = first.get("price") or {}
-                    yes_p = _cents(pr, "open_dollars", "open")
-                    if yes_p is not None:
-                        price = max(1, min(99, 100 - yes_p))
-                if price is None:
-                    bid = first.get("yes_bid") or {}
-                    yes_bid_p = _cents(bid, "open_dollars", "open")
-                    if yes_bid_p is not None:
-                        price = max(1, min(99, 100 - yes_bid_p))
-
+        if side == "yes":
+            price = _to_cents("previous_yes_ask_dollars")
+            if price is None:
+                price = _to_cents("previous_price_dollars")
             return price
-
-        except Exception as exc:
-            logger.debug(f"Could not get price for {ticker}: {exc}")
+        else:
+            # NO ask ≈ 100 − YES bid
+            yes_bid = _to_cents("previous_yes_bid_dollars")
+            if yes_bid is not None:
+                no_ask = 100 - yes_bid
+                return max(1, min(99, no_ask))
+            # Fallback: infer from previous_price (treat as YES mid, flip for NO)
+            yes_mid = _to_cents("previous_price_dollars")
+            if yes_mid is not None:
+                return max(1, min(99, 100 - yes_mid))
             return None
 
 
