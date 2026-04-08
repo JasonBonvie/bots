@@ -858,7 +858,7 @@ async def run_backtest(params: BacktestParams):
 async def weather_candle_debug(ticker: str):
     """
     Return raw first candlestick for a weather market ticker.
-    Use to inspect exact field names and value formats Kalshi returns.
+    Tries multiple period_intervals and also fetches the raw market object.
     e.g. /api/weather/candle_debug?ticker=KXLOWTNYC-26APR070415-15
     """
     if not kalshi_feed.client:
@@ -866,19 +866,42 @@ async def weather_candle_debug(ticker: str):
     from datetime import datetime, timezone, timedelta
     now      = datetime.now(timezone.utc)
     end_ts   = int(now.timestamp())
-    start_ts = int((now - timedelta(days=2)).timestamp())
+    start_ts = int((now - timedelta(days=7)).timestamp())
+
+    results: dict = {}
+
+    # Try multiple period intervals
+    for interval in [1, 10, 60]:
+        try:
+            candles = await kalshi_feed.client.get_historical_candlesticks(
+                ticker, start_ts=start_ts, end_ts=end_ts, period_interval=interval
+            )
+            results[f"period_{interval}min"] = {
+                "candle_count": len(candles),
+                "first_candle": candles[0] if candles else None,
+            }
+        except Exception as exc:
+            results[f"period_{interval}min"] = {"error": str(exc)}
+
+    # Also fetch raw market object to see what price fields are available
     try:
-        candles = await kalshi_feed.client.get_historical_candlesticks(
-            ticker, start_ts=start_ts, end_ts=end_ts, period_interval=60
-        )
-        return {
-            "ticker": ticker,
-            "candle_count": len(candles),
-            "first_candle": candles[0] if candles else None,
-            "all_keys": list(candles[0].keys()) if candles else [],
-        }
+        await kalshi_feed.client._ensure_session()
+        path = f"/trade-api/v2/markets/{ticker}"
+        url = f"{kalshi_feed.client.base_url.replace('/trade-api/v2', '')}{path}"
+        headers = kalshi_feed.client._get_auth_headers("GET", path)
+        async with kalshi_feed.client._session.get(url, headers=headers) as resp:
+            if resp.status == 200:
+                data = await resp.json()
+                market = data.get("market", data)
+                results["market_object"] = market
+                results["market_keys"] = list(market.keys()) if isinstance(market, dict) else []
+            else:
+                body = await resp.text()
+                results["market_object"] = {"status": resp.status, "body": body[:500]}
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc))
+        results["market_object"] = {"error": str(exc)}
+
+    return {"ticker": ticker, **results}
 
 
 @app.get("/api/weather/search")

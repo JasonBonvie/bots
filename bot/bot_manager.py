@@ -1724,10 +1724,13 @@ class BotManager:
         async with self._lock:
             for pos_id, position in list(self.positions.items()):
                 # Only clean up pending limit orders that have expired
+                expiry = position.limit_order_expiry
+                if expiry is not None and expiry.tzinfo is None:
+                    expiry = expiry.replace(tzinfo=timezone.utc)
                 if (position.is_limit_order and
                     position.order_status == OrderStatus.PENDING and
-                    position.limit_order_expiry and
-                    now > position.limit_order_expiry):
+                    expiry and
+                    now > expiry):
                     expired_positions.append(position)
 
             for position in expired_positions:
