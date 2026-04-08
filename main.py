@@ -854,6 +854,33 @@ async def run_backtest(params: BacktestParams):
         raise HTTPException(status_code=500, detail=f"Backtest failed: {str(exc)}")
 
 
+@app.get("/api/weather/candle_debug")
+async def weather_candle_debug(ticker: str):
+    """
+    Return raw first candlestick for a weather market ticker.
+    Use to inspect exact field names and value formats Kalshi returns.
+    e.g. /api/weather/candle_debug?ticker=KXLOWTNYC-26APR070415-15
+    """
+    if not kalshi_feed.client:
+        raise HTTPException(status_code=400, detail="Kalshi client not configured.")
+    from datetime import datetime, timezone, timedelta
+    now      = datetime.now(timezone.utc)
+    end_ts   = int(now.timestamp())
+    start_ts = int((now - timedelta(days=2)).timestamp())
+    try:
+        candles = await kalshi_feed.client.get_historical_candlesticks(
+            ticker, start_ts=start_ts, end_ts=end_ts, period_interval=60
+        )
+        return {
+            "ticker": ticker,
+            "candle_count": len(candles),
+            "first_candle": candles[0] if candles else None,
+            "all_keys": list(candles[0].keys()) if candles else [],
+        }
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
+
+
 @app.get("/api/weather/search")
 async def search_weather_series(keyword: str = "weather"):
     """

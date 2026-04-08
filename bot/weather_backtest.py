@@ -184,11 +184,19 @@ class WeatherBacktestEngine:
             first = candles[0]
 
             def _cents(obj: dict, *keys) -> Optional[int]:
+                """
+                Extract a price in cents from a candlestick field dict.
+                Handles both dollar format (0.0–1.0) and cent format (1–99).
+                Kalshi weather markets use cent integers; BTC markets use dollar floats.
+                """
                 for k in keys:
                     v = obj.get(k)
                     if v is not None:
                         try:
-                            return max(1, min(99, int(float(v) * 100)))
+                            f = float(v)
+                            # If value is already in cents range, use directly
+                            cents = int(round(f)) if f > 1.0 else int(round(f * 100))
+                            return max(1, min(99, cents))
                         except (ValueError, TypeError):
                             pass
                 return None
