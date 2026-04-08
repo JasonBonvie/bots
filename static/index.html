@@ -1260,6 +1260,7 @@
                 <button class="tab-btn" data-tab="edge">Edge Math</button>
                 <button class="tab-btn" data-tab="code">Bot Code</button>
                 <button class="tab-btn" data-tab="backtest">Backtest</button>
+                <button class="tab-btn" data-tab="weather">Weather BT</button>
             </div>
 
             <!-- Tab 1: Strategy -->
@@ -6649,6 +6650,376 @@
                 URL.revokeObjectURL(url);
             }
         </script>
+    <!-- Tab 6: Weather BT -->
+    <div class="tab-content" id="tab-weather">
+        <div style="padding:20px;display:flex;flex-direction:column;gap:20px;">
+
+            <!-- Header -->
+            <div style="display:flex;align-items:baseline;gap:12px;">
+                <span style="font-size:18px;font-weight:700;color:var(--text-primary);">Weather Market Backtest</span>
+                <span style="font-size:12px;color:var(--text-muted);">bet low-probability events on Kalshi daily weather markets</span>
+            </div>
+
+            <!-- Row 1: Controls -->
+            <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end;">
+
+                <!-- Date Range -->
+                <div>
+                    <div style="font-size:10px;font-weight:600;color:var(--text-muted);margin-bottom:6px;letter-spacing:0.05em;">DATE RANGE</div>
+                    <div style="display:flex;gap:0;">
+                        <button id="wbt-range-7" onclick="wbtSetRange(7)" style="padding:6px 12px;font-family:var(--font-mono);font-size:11px;font-weight:600;background:var(--bg-stat);border:1px solid var(--border-color);border-right:none;border-radius:3px 0 0 3px;color:var(--text-muted);cursor:pointer;">7D</button>
+                        <button id="wbt-range-30" onclick="wbtSetRange(30)" style="padding:6px 12px;font-family:var(--font-mono);font-size:11px;font-weight:600;background:var(--accent-green);border:1px solid var(--accent-green);border-right:none;color:#000;cursor:pointer;">30D</button>
+                        <button id="wbt-range-90" onclick="wbtSetRange(90)" style="padding:6px 12px;font-family:var(--font-mono);font-size:11px;font-weight:600;background:var(--bg-stat);border:1px solid var(--border-color);border-radius:0 3px 3px 0;color:var(--text-muted);cursor:pointer;">90D</button>
+                    </div>
+                </div>
+
+                <!-- Max Entry -->
+                <div>
+                    <div style="font-size:10px;font-weight:600;color:var(--text-muted);margin-bottom:6px;letter-spacing:0.05em;">MAX ENTRY (¢)</div>
+                    <input id="wbt-max-entry" type="number" value="20" min="1" max="49" step="1"
+                        style="width:70px;padding:6px 8px;font-family:var(--font-mono);font-size:12px;background:var(--bg-stat);border:1px solid var(--border-color);border-radius:3px;color:var(--text-primary);">
+                    <div style="font-size:10px;color:var(--text-muted);margin-top:3px;">only enter ≤ this prob</div>
+                </div>
+
+                <!-- Min Entry -->
+                <div>
+                    <div style="font-size:10px;font-weight:600;color:var(--text-muted);margin-bottom:6px;letter-spacing:0.05em;">MIN ENTRY (¢)</div>
+                    <input id="wbt-min-entry" type="number" value="1" min="1" max="49" step="1"
+                        style="width:70px;padding:6px 8px;font-family:var(--font-mono);font-size:12px;background:var(--bg-stat);border:1px solid var(--border-color);border-radius:3px;color:var(--text-primary);">
+                    <div style="font-size:10px;color:var(--text-muted);margin-top:3px;">skip below this</div>
+                </div>
+
+                <!-- Bet Side -->
+                <div>
+                    <div style="font-size:10px;font-weight:600;color:var(--text-muted);margin-bottom:6px;letter-spacing:0.05em;">BET SIDE</div>
+                    <select id="wbt-side" style="padding:6px 8px;font-family:var(--font-mono);font-size:11px;background:var(--bg-stat);border:1px solid var(--border-color);border-radius:3px;color:var(--text-primary);">
+                        <option value="yes">YES — event happens</option>
+                        <option value="no">NO — event doesn't happen</option>
+                    </select>
+                </div>
+
+                <!-- Stake -->
+                <div>
+                    <div style="font-size:10px;font-weight:600;color:var(--text-muted);margin-bottom:6px;letter-spacing:0.05em;">STAKE / TRADE ($)</div>
+                    <input id="wbt-stake" type="number" value="1.00" min="0.01" step="0.01"
+                        style="width:80px;padding:6px 8px;font-family:var(--font-mono);font-size:12px;background:var(--bg-stat);border:1px solid var(--border-color);border-radius:3px;color:var(--text-primary);">
+                </div>
+
+                <!-- Martingale -->
+                <div>
+                    <div style="font-size:10px;font-weight:600;color:var(--text-muted);margin-bottom:6px;letter-spacing:0.05em;">MARTINGALE</div>
+                    <div style="display:flex;align-items:center;gap:8px;">
+                        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;color:var(--text-secondary);">
+                            <input type="checkbox" id="wbt-martingale" onchange="wbtToggleMartingale()" style="accent-color:var(--accent-green);">
+                            Enable
+                        </label>
+                    </div>
+                    <div id="wbt-mg-controls" style="display:none;margin-top:6px;display:none;gap:8px;flex-wrap:wrap;">
+                        <div>
+                            <div style="font-size:10px;color:var(--text-muted);">Multiplier</div>
+                            <input id="wbt-mg-mult" type="number" value="2.0" min="1.1" max="4.0" step="0.1"
+                                style="width:60px;padding:4px 6px;font-family:var(--font-mono);font-size:11px;background:var(--bg-stat);border:1px solid var(--border-color);border-radius:3px;color:var(--text-primary);">
+                        </div>
+                        <div>
+                            <div style="font-size:10px;color:var(--text-muted);">Max Level</div>
+                            <input id="wbt-mg-max" type="number" value="5" min="1" max="10" step="1"
+                                style="width:55px;padding:4px 6px;font-family:var(--font-mono);font-size:11px;background:var(--bg-stat);border:1px solid var(--border-color);border-radius:3px;color:var(--text-primary);">
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Row 2: Series selection -->
+            <div style="background:var(--bg-card);border:1px solid var(--border-color);border-radius:6px;padding:16px;">
+                <div style="font-size:11px;font-weight:600;color:var(--text-muted);margin-bottom:10px;letter-spacing:0.05em;">WEATHER SERIES</div>
+
+                <!-- Quick-select chips -->
+                <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;">Quick select:</div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;" id="wbt-chips">
+                </div>
+
+                <!-- Manual input -->
+                <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px;">Or enter series tickers manually (comma-separated):</div>
+                <input id="wbt-series-input" type="text" placeholder="e.g. KXHIGHNYD, KXLOWNYD, KXSNOWJFK"
+                    style="width:100%;max-width:600px;padding:7px 10px;font-family:var(--font-mono);font-size:12px;background:var(--bg-stat);border:1px solid var(--border-color);border-radius:3px;color:var(--text-primary);box-sizing:border-box;">
+                <div style="font-size:10px;color:var(--text-muted);margin-top:5px;">
+                    Common series: KXHIGHNYD (NYC high), KXLOWNYD (NYC low), KXHIGHCHID (CHI high), KXHIGHLAXD (LA high), KXHIGHMIAMID (MIA high), KXSNOWJFK (JFK snow)
+                </div>
+            </div>
+
+            <!-- Row 3: Run -->
+            <div style="display:flex;align-items:center;gap:12px;padding-top:4px;border-top:1px solid var(--border-color);">
+                <button id="wbt-run-btn" onclick="wbtRun()"
+                    style="padding:10px 28px;font-family:var(--font-mono);font-size:13px;font-weight:700;background:var(--accent-green);border:none;border-radius:4px;color:#000;cursor:pointer;">
+                    ▶ Run Weather Backtest
+                </button>
+                <span id="wbt-status" style="font-size:12px;color:var(--text-muted);"></span>
+            </div>
+
+            <!-- Results -->
+            <div id="wbt-results" style="display:none;flex-direction:column;gap:16px;">
+
+                <!-- Stat cards -->
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;" id="wbt-stats-grid"></div>
+
+                <!-- Equity curve placeholder -->
+                <div style="background:var(--bg-card);border:1px solid var(--border-color);border-radius:6px;padding:16px;">
+                    <div style="font-size:11px;font-weight:600;color:var(--text-muted);margin-bottom:10px;letter-spacing:0.05em;">EQUITY CURVE</div>
+                    <canvas id="wbt-equity-chart" height="140" style="width:100%;"></canvas>
+                </div>
+
+                <!-- Trade log -->
+                <div style="background:var(--bg-card);border:1px solid var(--border-color);border-radius:6px;padding:16px;">
+                    <div style="font-size:11px;font-weight:600;color:var(--text-muted);margin-bottom:10px;letter-spacing:0.05em;">TRADE LOG</div>
+                    <div style="overflow-x:auto;">
+                        <table style="width:100%;border-collapse:collapse;font-size:11px;font-family:var(--font-mono);">
+                            <thead>
+                                <tr style="border-bottom:1px solid var(--border-color);color:var(--text-muted);">
+                                    <th style="text-align:left;padding:6px 8px;">DATE</th>
+                                    <th style="text-align:left;padding:6px 8px;">SERIES</th>
+                                    <th style="text-align:left;padding:6px 8px;max-width:300px;">MARKET</th>
+                                    <th style="text-align:right;padding:6px 8px;">ENTRY</th>
+                                    <th style="text-align:right;padding:6px 8px;">QTY</th>
+                                    <th style="text-align:center;padding:6px 8px;">RESULT</th>
+                                    <th style="text-align:right;padding:6px 8px;">P&L</th>
+                                </tr>
+                            </thead>
+                            <tbody id="wbt-trade-tbody"></tbody>
+                        </table>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ── Weather BT globals ──────────────────────────────────────────────
+        let wbtRangedays = 30;
+        let wbtSelectedChips = new Set();
+
+        const WBT_CHIPS = [
+            { label: "NYC High",    ticker: "KXHIGHNYD" },
+            { label: "NYC Low",     ticker: "KXLOWNYD" },
+            { label: "JFK Snow",    ticker: "KXSNOWJFK" },
+            { label: "CHI High",    ticker: "KXHIGHCHID" },
+            { label: "LA High",     ticker: "KXHIGHLAXD" },
+            { label: "MIA High",    ticker: "KXHIGHMIAMID" },
+            { label: "SEA High",    ticker: "KXHIGHSEATTLED" },
+            { label: "DEN High",    ticker: "KXHIGHDENVERD" },
+            { label: "ATL High",    ticker: "KXHIGHATLD" },
+            { label: "NYC Rain",    ticker: "KXRAINNYD" },
+        ];
+
+        (function wbtInitChips() {
+            const container = document.getElementById("wbt-chips");
+            WBT_CHIPS.forEach(({ label, ticker }) => {
+                const btn = document.createElement("button");
+                btn.textContent = label;
+                btn.dataset.ticker = ticker;
+                btn.title = ticker;
+                btn.style.cssText = "padding:4px 10px;font-family:var(--font-mono);font-size:11px;font-weight:600;background:var(--bg-stat);border:1px solid var(--border-color);border-radius:12px;color:var(--text-muted);cursor:pointer;transition:all 0.15s;";
+                btn.onclick = () => {
+                    if (wbtSelectedChips.has(ticker)) {
+                        wbtSelectedChips.delete(ticker);
+                        btn.style.background = "var(--bg-stat)";
+                        btn.style.borderColor = "var(--border-color)";
+                        btn.style.color = "var(--text-muted)";
+                    } else {
+                        wbtSelectedChips.add(ticker);
+                        btn.style.background = "var(--accent-green)";
+                        btn.style.borderColor = "var(--accent-green)";
+                        btn.style.color = "#000";
+                    }
+                };
+                container.appendChild(btn);
+            });
+        })();
+
+        function wbtSetRange(days) {
+            wbtRangedays = days;
+            [7, 30, 90].forEach(d => {
+                const btn = document.getElementById(`wbt-range-${d}`);
+                if (!btn) return;
+                const active = d === days;
+                btn.style.background = active ? "var(--accent-green)" : "var(--bg-stat)";
+                btn.style.borderColor = active ? "var(--accent-green)" : "var(--border-color)";
+                btn.style.color = active ? "#000" : "var(--text-muted)";
+            });
+        }
+
+        function wbtToggleMartingale() {
+            const on = document.getElementById("wbt-martingale").checked;
+            document.getElementById("wbt-mg-controls").style.display = on ? "flex" : "none";
+        }
+
+        function wbtGetSeries() {
+            const chips = [...wbtSelectedChips];
+            const manual = (document.getElementById("wbt-series-input").value || "")
+                .split(",").map(s => s.trim().toUpperCase()).filter(Boolean);
+            return [...new Set([...chips, ...manual])];
+        }
+
+        async function wbtRun() {
+            const series = wbtGetSeries();
+            if (!series.length) {
+                document.getElementById("wbt-status").textContent = "Select at least one weather series.";
+                return;
+            }
+
+            const now = Math.floor(Date.now() / 1000);
+            const startTs = now - wbtRangedays * 86400;
+
+            const payload = {
+                start_ts: startTs,
+                end_ts: now,
+                series_tickers: series,
+                max_entry_cents: parseInt(document.getElementById("wbt-max-entry").value || "20"),
+                min_entry_cents: parseInt(document.getElementById("wbt-min-entry").value || "1"),
+                bet_side: document.getElementById("wbt-side").value,
+                stake_cents: Math.round(parseFloat(document.getElementById("wbt-stake").value || "1") * 100),
+                use_martingale: document.getElementById("wbt-martingale").checked,
+                martingale_multiplier: parseFloat(document.getElementById("wbt-mg-mult")?.value || "2.0"),
+                max_martingale_level: parseInt(document.getElementById("wbt-mg-max")?.value || "5"),
+            };
+
+            const btn = document.getElementById("wbt-run-btn");
+            const status = document.getElementById("wbt-status");
+            btn.disabled = true;
+            btn.textContent = "⏳ Running...";
+            status.textContent = `Fetching ${series.join(", ")} — this may take a minute...`;
+            document.getElementById("wbt-results").style.display = "none";
+
+            try {
+                const resp = await fetch("/api/backtest/weather", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload),
+                });
+                if (!resp.ok) {
+                    const err = await resp.json().catch(() => ({}));
+                    status.textContent = `Error: ${err.detail || resp.statusText}`;
+                    return;
+                }
+                const r = await resp.json();
+                wbtRenderResults(r);
+                status.textContent = "";
+            } catch (e) {
+                status.textContent = `Request failed: ${e.message}`;
+            } finally {
+                btn.disabled = false;
+                btn.textContent = "▶ Run Weather Backtest";
+            }
+        }
+
+        function wbtRenderResults(r) {
+            const pnlDollars = (r.total_pnl_cents / 100).toFixed(2);
+            const pnlColor = r.total_pnl_cents >= 0 ? "var(--accent-green)" : "var(--accent-red)";
+            const avgWin = (r.avg_win_cents / 100).toFixed(2);
+            const avgLoss = (r.avg_loss_cents / 100).toFixed(2);
+            const dd = (r.max_drawdown_cents / 100).toFixed(2);
+
+            const stats = [
+                { label: "MARKETS SCANNED", value: r.total_markets_checked, color: "var(--text-primary)" },
+                { label: "TRADES TAKEN",    value: r.trades_taken,          color: "var(--text-primary)" },
+                { label: "WIN RATE",        value: `${(r.win_rate * 100).toFixed(1)}%`, color: r.win_rate >= 0.5 ? "var(--accent-green)" : "var(--accent-red)" },
+                { label: "WINS / LOSSES",   value: `${r.wins} / ${r.losses}`, color: "var(--text-primary)" },
+                { label: "TOTAL P&L",       value: `$${pnlDollars}`, color: pnlColor },
+                { label: "AVG WIN",         value: `$${avgWin}`,  color: "var(--accent-green)" },
+                { label: "AVG LOSS",        value: `$${avgLoss}`, color: "var(--accent-red)" },
+                { label: "MAX DRAWDOWN",    value: `-$${dd}`,     color: "var(--accent-red)" },
+            ];
+
+            const grid = document.getElementById("wbt-stats-grid");
+            grid.innerHTML = stats.map(s => `
+                <div style="background:var(--bg-stat);border:1px solid var(--border-color);border-radius:6px;padding:12px;">
+                    <div style="font-size:9px;font-weight:600;color:var(--text-muted);letter-spacing:0.05em;margin-bottom:6px;">${s.label}</div>
+                    <div style="font-size:18px;font-weight:700;color:${s.color};font-family:var(--font-mono);">${s.value}</div>
+                </div>
+            `).join("");
+
+            // Equity curve
+            wbtDrawEquity(r.equity_curve || []);
+
+            // Trade log
+            const tbody = document.getElementById("wbt-trade-tbody");
+            if (!r.trade_log || !r.trade_log.length) {
+                tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--text-muted);">No trades matched the filters.</td></tr>`;
+            } else {
+                tbody.innerHTML = r.trade_log.map(t => {
+                    const pnl = t.pnl_cents / 100;
+                    const pnlColor = pnl >= 0 ? "var(--accent-green)" : "var(--accent-red)";
+                    const won = t.won ? `<span style="color:var(--accent-green);">WIN</span>` : `<span style="color:var(--accent-red);">LOSS</span>`;
+                    const date = t.time ? t.time.slice(0, 10) : "—";
+                    const title = t.title.length > 50 ? t.title.slice(0, 50) + "…" : t.title;
+                    return `<tr style="border-bottom:1px solid var(--border-color);">
+                        <td style="padding:5px 8px;color:var(--text-muted);">${date}</td>
+                        <td style="padding:5px 8px;color:var(--text-secondary);">${t.series}</td>
+                        <td style="padding:5px 8px;color:var(--text-primary);max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${t.title}">${title}</td>
+                        <td style="padding:5px 8px;text-align:right;">${t.entry_cents}¢</td>
+                        <td style="padding:5px 8px;text-align:right;">${t.qty}</td>
+                        <td style="padding:5px 8px;text-align:center;">${won}</td>
+                        <td style="padding:5px 8px;text-align:right;color:${pnlColor};">${pnl >= 0 ? "+" : ""}$${pnl.toFixed(2)}</td>
+                    </tr>`;
+                }).join("");
+            }
+
+            document.getElementById("wbt-results").style.display = "flex";
+        }
+
+        function wbtDrawEquity(curve) {
+            const canvas = document.getElementById("wbt-equity-chart");
+            const ctx = canvas.getContext("2d");
+            canvas.width = canvas.offsetWidth || 800;
+            canvas.height = 140;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            if (!curve.length) {
+                ctx.fillStyle = "var(--text-muted)";
+                ctx.font = "12px monospace";
+                ctx.fillText("No equity data", 20, 70);
+                return;
+            }
+
+            const equities = curve.map(p => p.equity);
+            const min = Math.min(0, ...equities);
+            const max = Math.max(0, ...equities);
+            const range = max - min || 1;
+            const W = canvas.width - 20;
+            const H = canvas.height - 20;
+            const pad = 10;
+
+            const toX = i => pad + (i / (curve.length - 1 || 1)) * W;
+            const toY = v => pad + (1 - (v - min) / range) * H;
+
+            // Zero line
+            const zeroY = toY(0);
+            ctx.strokeStyle = "rgba(255,255,255,0.1)";
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(pad, zeroY);
+            ctx.lineTo(pad + W, zeroY);
+            ctx.stroke();
+
+            // Equity line
+            ctx.beginPath();
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = equities[equities.length - 1] >= 0 ? "#00e676" : "#ff5252";
+            curve.forEach((p, i) => {
+                i === 0 ? ctx.moveTo(toX(i), toY(p.equity)) : ctx.lineTo(toX(i), toY(p.equity));
+            });
+            ctx.stroke();
+
+            // Fill under curve
+            ctx.lineTo(toX(curve.length - 1), toY(0));
+            ctx.lineTo(toX(0), toY(0));
+            ctx.closePath();
+            ctx.fillStyle = equities[equities.length - 1] >= 0 ? "rgba(0,230,118,0.08)" : "rgba(255,82,82,0.08)";
+            ctx.fill();
+        }
+    </script>
+
     <!-- Floating param tooltip -->
     <div id="param-tooltip">
         <div class="tip-title"></div>

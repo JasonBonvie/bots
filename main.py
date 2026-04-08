@@ -21,8 +21,9 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from bot.signals import compute_signals
 from bot.scheduler import scheduler
-from bot.models import SignalResult, HealthCheck, BacktestParams, BacktestResult, OptimizeRequest, OptimizeResponse, OptimizeTrialResult
+from bot.models import SignalResult, HealthCheck, BacktestParams, BacktestResult, OptimizeRequest, OptimizeResponse, OptimizeTrialResult, WeatherBacktestParams, WeatherBacktestResult
 from bot.backtest import BacktestEngine
+from bot.weather_backtest import WeatherBacktestEngine
 from bot.live_price import live_price_feed
 from bot.kalshi_feed import kalshi_feed
 from bot.bot_manager import bot_manager, Bot, BotConfig, BotStatus, PositionSide, OrderStatus, BotLog
@@ -851,6 +852,32 @@ async def run_backtest(params: BacktestParams):
         import traceback
         logger.error(f"Backtest error: {exc}\n{traceback.format_exc()}")
         raise HTTPException(status_code=500, detail=f"Backtest failed: {str(exc)}")
+
+
+@app.post("/api/backtest/weather", response_model=WeatherBacktestResult)
+async def run_weather_backtest(params: WeatherBacktestParams):
+    """
+    Backtest a low-probability weather market betting strategy.
+    Fetches all settled markets for the requested series in the date range,
+    enters when opening price <= max_entry_cents, and tracks P&L at settlement.
+    Requires Kalshi API credentials.
+    """
+    try:
+        if not kalshi_feed.client:
+            raise HTTPException(
+                status_code=400,
+                detail="Kalshi client not configured. Set KALSHI_API_KEY_ID and KALSHI_PRIVATE_KEY_PATH."
+            )
+        engine = WeatherBacktestEngine(kalshi_client=kalshi_feed.client)
+        return await engine.run(params)
+    except HTTPException:
+        raise
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except Exception as exc:
+        import traceback
+        logger.error(f"Weather backtest error: {exc}\n{traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"Weather backtest failed: {str(exc)}")
 
 
 @app.websocket("/ws")

@@ -280,3 +280,46 @@ class OptimizeResponse(BaseModel):
     metric: str
     duration_seconds: float
     results: List[OptimizeTrialResult]
+
+
+# ── Weather backtest models ───────────────────────────────────────────────────
+
+class WeatherTradeRecord(BaseModel):
+    time: str = ""
+    ticker: str = ""
+    title: str = ""
+    series: str = ""
+    entry_cents: int = 0
+    result: str = ""        # "YES" or "NO" (market resolution)
+    won: bool = False
+    qty: int = 0
+    pnl_cents: int = 0
+    martingale_level: int = 0
+
+
+class WeatherBacktestParams(BaseModel):
+    start_ts: int
+    end_ts: int
+    series_tickers: List[str]   # e.g. ["KXHIGHNYD", "KXLOWNYD"]
+    max_entry_cents: int = 20   # only enter when market price <= this
+    min_entry_cents: int = 1    # floor — skip markets priced below this
+    bet_side: str = "yes"       # "yes" | "no"
+    stake_cents: int = 100      # dollars × 100 per trade
+    use_martingale: bool = False
+    martingale_multiplier: float = 2.0
+    max_martingale_level: int = 5
+
+
+class WeatherBacktestResult(BaseModel):
+    total_markets_checked: int = 0
+    trades_taken: int = 0
+    wins: int = 0
+    losses: int = 0
+    win_rate: float = 0.0
+    total_pnl_cents: int = 0
+    avg_pnl_cents: float = 0.0
+    avg_win_cents: float = 0.0
+    avg_loss_cents: float = 0.0
+    max_drawdown_cents: int = 0
+    equity_curve: List[EquityPoint] = []
+    trade_log: List[WeatherTradeRecord] = []
