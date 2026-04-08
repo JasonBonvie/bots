@@ -595,33 +595,96 @@ class KalshiClient:
     async def search_series_by_keyword(
         self,
         keyword: str,
-        statuses: list = None,
-        limit: int = 200,
+        limit: int = 1000,
     ) -> List[Dict]:
         """
-        Search Kalshi markets by keyword and return unique series info.
+        Search Kalshi's series catalog by keyword.
 
-        Fetches markets across requested statuses, filters by keyword in
-        ticker/title, and returns deduplicated series entries with counts.
+        Calls GET /trade-api/v2/series (paginated) and filters by keyword
+        in ticker or title. Falls back to paginated market search if the
+        series endpoint returns nothing.
 
         Returns list of dicts: {series_ticker, example_title, market_count}
         """
-        if statuses is None:
-            statuses = ["open", "closed", "settled"]
-
+        await self._ensure_session()
         kw = keyword.strip().lower()
-        series_map: dict = {}
+        results = []
 
-        for status in statuses:
-            markets = await self.get_markets(status=status, limit=limit)
-            for m in markets:
-                ticker = m.get("ticker", "")
-                title = m.get("title", "")
-                if kw in ticker.lower() or kw in title.lower():
-                    series = ticker.split("-")[0] if "-" in ticker else ticker
-                    if series not in series_map:
-                        series_map[series] = {"series_ticker": series, "example_title": title, "market_count": 0}
-                    series_map[series]["market_count"] += 1
+        # ── Strategy 1: hit the series catalog ──────────────────────────────
+        path = "/trade-api/v2/series"
+        url = f"{self.base_url.replace('/trade-api/v2', '')}{path}"
+        headers = self._get_auth_headers("GET", path)
+        cursor = ""
+        all_series: List[Dict] = []
+        try:
+            while True:
+                params: Dict = {"limit": 200}
+                if cursor:
+                    params["cursor"] = cursor
+                async with self._session.get(url, headers=headers, params=params) as resp:
+                    if resp.status == 200:
+                        data = await resp.json()
+                        batch = data.get("series", [])
+                        all_series.extend(batch)
+                        cursor = data.get("cursor", "")
+                        if not cursor or len(batch) < 200:
+                            break
+                    else:
+                        body = await resp.text()
+                        logger.warning(f"Series catalog status {resp.status}: {body[:200]}")
+                        break
+        except Exception as exc:
+            logger.warning(f"Series catalog fetch failed: {exc}")
+
+        if all_series:
+            for s in all_series:
+                ticker = s.get("ticker", "") or s.get("series_ticker", "")
+                title  = s.get("title", "") or s.get("name", "")
+                freq   = s.get("frequency", "") or s.get("category", "")
+                text   = f"{ticker} {title} {freq}".lower()
+                if kw in text:
+                    results.append({
+                        "series_ticker": ticker,
+                        "example_title": title,
+                        "market_count": s.get("market_count", 0) or s.get("active_market_count", "?"),
+                    })
+            if results:
+                return sorted(results, key=lambda x: str(x["market_count"]), reverse=True)
+
+        # ── Strategy 2: paginated market search (fallback) ───────────────────
+        logger.info(f"Series catalog empty — falling back to paginated market search for '{kw}'")
+        series_map: dict = {}
+        for status in ("open", "closed", "settled"):
+            fetched = 0
+            path_m = "/trade-api/v2/markets"
+            url_m  = f"{self.base_url.replace('/trade-api/v2', '')}{path_m}"
+            cur2   = ""
+            while fetched < limit:
+                params_m: Dict = {"limit": 200, "status": status}
+                if cur2:
+                    params_m["cursor"] = cur2
+                headers_m = self._get_auth_headers("GET", path_m)
+                try:
+                    async with self._session.get(url_m, headers=headers_m, params=params_m) as r:
+                        if r.status != 200:
+                            break
+                        d = await r.json()
+                        batch = d.get("markets", [])
+                        for m in batch:
+                            t = m.get("ticker", "")
+                            ti = m.get("title", "")
+                            if kw in t.lower() or kw in ti.lower():
+                                ser = t.split("-")[0] if "-" in t else t
+                                if ser not in series_map:
+                                    series_map[ser] = {"series_ticker": ser, "example_title": ti, "market_count": 0}
+                                series_map[ser]["market_count"] += 1
+                        fetched += len(batch)
+                        cur2 = d.get("cursor", "")
+                        if not cur2 or len(batch) < 200:
+                            break
+                except Exception as exc:
+                    logger.warning(f"Market search error ({status}): {exc}")
+                    break
 
         return sorted(series_map.values(), key=lambda x: -x["market_count"])
 
