@@ -6934,10 +6934,14 @@
                 }
                 const r = await resp.json();
                 wbtRenderResults(r);
-                // Show per-series market counts so user knows if a series had no data
+                // Show per-series market counts + no-price skips
                 if (r.series_counts && Object.keys(r.series_counts).length) {
                     const parts = Object.entries(r.series_counts).map(([s, n]) => `${s}: ${n}`);
-                    status.textContent = `Markets found — ${parts.join(" | ")}`;
+                    let msg = `Markets found — ${parts.join(" | ")}`;
+                    if (r.no_price_count > 0) {
+                        msg += ` | ⚠️ ${r.no_price_count} skipped (no candlestick price)`;
+                    }
+                    status.textContent = msg;
                 } else {
                     status.textContent = "⚠️ 0 markets found. Use 🔍 Search Kalshi to find valid series tickers.";
                 }

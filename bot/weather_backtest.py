@@ -55,6 +55,7 @@ class WeatherBacktestEngine:
 
         # Track how many markets were fetched per series
         series_counts = {}
+        no_price_count = 0
         for m in all_markets:
             s = m.get("_series", "unknown")
             series_counts[s] = series_counts.get(s, 0) + 1
@@ -74,6 +75,7 @@ class WeatherBacktestEngine:
             market_open_ts = close_ts - 86400  # look back up to 24h
             entry_price = await self._get_open_price(ticker, p.bet_side, market_open_ts, close_ts)
             if entry_price is None:
+                no_price_count += 1
                 continue
 
             # Filter by probability window
@@ -140,6 +142,7 @@ class WeatherBacktestEngine:
 
         return WeatherBacktestResult(
             series_counts=series_counts,
+            no_price_count=no_price_count,
             total_markets_checked=total_markets_checked,
             trades_taken=len(trades),
             wins=wins,
@@ -161,7 +164,15 @@ class WeatherBacktestEngine:
         start_ts: int,
         end_ts: int,
     ) -> Optional[int]:
-        """Get the opening price for the configured side from the first hourly candle."""
+        """
+        Get the opening ask price for the configured side from the first candle.
+
+        Tries multiple candlestick fields in priority order:
+          1. yes_ask.open / no_ask.open  (BTC-style markets)
+          2. price.open                  (weather / daily event markets)
+          3. yes_bid.open → infer no price as 100 - yes_bid
+        Returns None only if no candlestick data is returned at all.
+        """
         try:
             candles = await self._client.get_historical_candlesticks(
                 ticker, start_ts=start_ts, end_ts=end_ts, period_interval=60
@@ -170,23 +181,43 @@ class WeatherBacktestEngine:
                 return None
 
             first = candles[0]
-            if side == "yes":
-                ask = first.get("yes_ask", {}) or {}
-            else:
-                ask = first.get("no_ask", {}) or {}
 
-            raw = ask.get("open_dollars") or ask.get("open")
-
-            # fallback: use mid-price from yes_bid + yes_ask
-            if raw is None and side == "yes":
-                bid = first.get("yes_bid", {}) or {}
-                raw = bid.get("open_dollars") or bid.get("open")
-
-            if raw is None:
+            def _cents(obj: dict, *keys) -> Optional[int]:
+                for k in keys:
+                    v = obj.get(k)
+                    if v is not None:
+                        try:
+                            return max(1, min(99, int(float(v) * 100)))
+                        except (ValueError, TypeError):
+                            pass
                 return None
 
-            price = int(float(raw) * 100)
-            return max(1, min(99, price))
+            if side == "yes":
+                ask = first.get("yes_ask") or {}
+                price = _cents(ask, "open_dollars", "open")
+                if price is None:
+                    # try generic price field
+                    pr = first.get("price") or {}
+                    price = _cents(pr, "open_dollars", "open")
+                if price is None:
+                    bid = first.get("yes_bid") or {}
+                    price = _cents(bid, "open_dollars", "open")
+            else:
+                # NO side: try no_ask, then infer from yes_bid (no_price ≈ 100 - yes_bid)
+                ask = first.get("no_ask") or {}
+                price = _cents(ask, "open_dollars", "open")
+                if price is None:
+                    pr = first.get("price") or {}
+                    yes_p = _cents(pr, "open_dollars", "open")
+                    if yes_p is not None:
+                        price = max(1, min(99, 100 - yes_p))
+                if price is None:
+                    bid = first.get("yes_bid") or {}
+                    yes_bid_p = _cents(bid, "open_dollars", "open")
+                    if yes_bid_p is not None:
+                        price = max(1, min(99, 100 - yes_bid_p))
+
+            return price
 
         except Exception as exc:
             logger.debug(f"Could not get price for {ticker}: {exc}")
