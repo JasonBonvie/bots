@@ -6731,20 +6731,31 @@
             </div>
 
             <!-- Row 2: Series selection -->
-            <div style="background:var(--bg-card);border:1px solid var(--border-color);border-radius:6px;padding:16px;">
-                <div style="font-size:11px;font-weight:600;color:var(--text-muted);margin-bottom:10px;letter-spacing:0.05em;">WEATHER SERIES</div>
+            <div style="background:var(--bg-card);border:1px solid var(--border-color);border-radius:6px;padding:16px;display:flex;flex-direction:column;gap:12px;">
+                <div style="font-size:11px;font-weight:600;color:var(--text-muted);letter-spacing:0.05em;">WEATHER SERIES</div>
 
-                <!-- Quick-select chips -->
-                <div style="font-size:11px;color:var(--text-muted);margin-bottom:8px;">Quick select:</div>
-                <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;" id="wbt-chips">
+                <!-- Search on Kalshi -->
+                <div>
+                    <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px;">Search Kalshi for real series tickers:</div>
+                    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                        <input id="wbt-search-kw" type="text" placeholder="e.g. temperature, snow, rain, high, low"
+                            style="width:260px;padding:6px 10px;font-family:var(--font-mono);font-size:12px;background:var(--bg-stat);border:1px solid var(--border-color);border-radius:3px;color:var(--text-primary);"
+                            onkeydown="if(event.key==='Enter') wbtSearchSeries()">
+                        <button onclick="wbtSearchSeries()" id="wbt-search-btn"
+                            style="padding:6px 16px;font-family:var(--font-mono);font-size:11px;font-weight:600;background:var(--bg-stat);border:1px solid var(--border-color);border-radius:3px;color:var(--text-primary);cursor:pointer;">
+                            🔍 Search Kalshi
+                        </button>
+                        <span id="wbt-search-status" style="font-size:11px;color:var(--text-muted);"></span>
+                    </div>
+                    <!-- Search results as chips -->
+                    <div id="wbt-chips" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;min-height:0;"></div>
                 </div>
 
                 <!-- Manual input -->
-                <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px;">Or enter series tickers manually (comma-separated):</div>
-                <input id="wbt-series-input" type="text" placeholder="e.g. KXHIGHNYD, KXLOWNYD, KXSNOWJFK"
-                    style="width:100%;max-width:600px;padding:7px 10px;font-family:var(--font-mono);font-size:12px;background:var(--bg-stat);border:1px solid var(--border-color);border-radius:3px;color:var(--text-primary);box-sizing:border-box;">
-                <div style="font-size:10px;color:var(--text-muted);margin-top:5px;">
-                    Common series: KXHIGHNYD (NYC high), KXLOWNYD (NYC low), KXHIGHCHID (CHI high), KXHIGHLAXD (LA high), KXHIGHMIAMID (MIA high), KXSNOWJFK (JFK snow)
+                <div>
+                    <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px;">Or enter series tickers manually (comma-separated):</div>
+                    <input id="wbt-series-input" type="text" placeholder="Paste series tickers from search results above"
+                        style="width:100%;max-width:600px;padding:7px 10px;font-family:var(--font-mono);font-size:12px;background:var(--bg-stat);border:1px solid var(--border-color);border-radius:3px;color:var(--text-primary);box-sizing:border-box;">
                 </div>
             </div>
 
@@ -6799,43 +6810,62 @@
         let wbtRangedays = 30;
         let wbtSelectedChips = new Set();
 
-        const WBT_CHIPS = [
-            { label: "NYC High",    ticker: "KXHIGHNYD" },
-            { label: "NYC Low",     ticker: "KXLOWNYD" },
-            { label: "JFK Snow",    ticker: "KXSNOWJFK" },
-            { label: "CHI High",    ticker: "KXHIGHCHID" },
-            { label: "LA High",     ticker: "KXHIGHLAXD" },
-            { label: "MIA High",    ticker: "KXHIGHMIAMID" },
-            { label: "SEA High",    ticker: "KXHIGHSEATTLED" },
-            { label: "DEN High",    ticker: "KXHIGHDENVERD" },
-            { label: "ATL High",    ticker: "KXHIGHATLD" },
-            { label: "NYC Rain",    ticker: "KXRAINNYD" },
-        ];
+        function wbtAddChip(ticker, label, container) {
+            const btn = document.createElement("button");
+            const display = label || ticker;
+            btn.textContent = display;
+            btn.dataset.ticker = ticker;
+            btn.title = ticker;
+            const isSelected = wbtSelectedChips.has(ticker);
+            btn.style.cssText = `padding:4px 10px;font-family:var(--font-mono);font-size:11px;font-weight:600;background:${isSelected ? "var(--accent-green)" : "var(--bg-stat)"};border:1px solid ${isSelected ? "var(--accent-green)" : "var(--border-color)"};border-radius:12px;color:${isSelected ? "#000" : "var(--text-muted)"};cursor:pointer;transition:all 0.15s;`;
+            btn.onclick = () => {
+                if (wbtSelectedChips.has(ticker)) {
+                    wbtSelectedChips.delete(ticker);
+                    btn.style.background = "var(--bg-stat)";
+                    btn.style.borderColor = "var(--border-color)";
+                    btn.style.color = "var(--text-muted)";
+                } else {
+                    wbtSelectedChips.add(ticker);
+                    btn.style.background = "var(--accent-green)";
+                    btn.style.borderColor = "var(--accent-green)";
+                    btn.style.color = "#000";
+                }
+            };
+            container.appendChild(btn);
+        }
 
-        (function wbtInitChips() {
-            const container = document.getElementById("wbt-chips");
-            WBT_CHIPS.forEach(({ label, ticker }) => {
-                const btn = document.createElement("button");
-                btn.textContent = label;
-                btn.dataset.ticker = ticker;
-                btn.title = ticker;
-                btn.style.cssText = "padding:4px 10px;font-family:var(--font-mono);font-size:11px;font-weight:600;background:var(--bg-stat);border:1px solid var(--border-color);border-radius:12px;color:var(--text-muted);cursor:pointer;transition:all 0.15s;";
-                btn.onclick = () => {
-                    if (wbtSelectedChips.has(ticker)) {
-                        wbtSelectedChips.delete(ticker);
-                        btn.style.background = "var(--bg-stat)";
-                        btn.style.borderColor = "var(--border-color)";
-                        btn.style.color = "var(--text-muted)";
-                    } else {
-                        wbtSelectedChips.add(ticker);
-                        btn.style.background = "var(--accent-green)";
-                        btn.style.borderColor = "var(--accent-green)";
-                        btn.style.color = "#000";
-                    }
-                };
-                container.appendChild(btn);
-            });
-        })();
+        async function wbtSearchSeries() {
+            const kw = (document.getElementById("wbt-search-kw").value || "").trim();
+            if (!kw) return;
+            const searchBtn = document.getElementById("wbt-search-btn");
+            const statusEl = document.getElementById("wbt-search-status");
+            const chipsEl  = document.getElementById("wbt-chips");
+            searchBtn.disabled = true;
+            searchBtn.textContent = "⏳ Searching...";
+            statusEl.textContent = "";
+            chipsEl.innerHTML = "";
+            try {
+                const resp = await fetch(`/api/weather/search?keyword=${encodeURIComponent(kw)}`);
+                if (!resp.ok) {
+                    const err = await resp.json().catch(() => ({}));
+                    statusEl.textContent = `Error: ${err.detail || resp.statusText}`;
+                    return;
+                }
+                const data = await resp.json();
+                const series = data.series || [];
+                if (!series.length) {
+                    statusEl.textContent = `No series found for "${kw}" — try a different keyword.`;
+                    return;
+                }
+                statusEl.textContent = `${series.length} series found — click to select:`;
+                series.forEach(s => wbtAddChip(s.series_ticker, `${s.series_ticker} (${s.market_count})`, chipsEl));
+            } catch (e) {
+                statusEl.textContent = `Search failed: ${e.message}`;
+            } finally {
+                searchBtn.disabled = false;
+                searchBtn.textContent = "🔍 Search Kalshi";
+            }
+        }
 
         function wbtSetRange(days) {
             wbtRangedays = days;
@@ -6904,7 +6934,13 @@
                 }
                 const r = await resp.json();
                 wbtRenderResults(r);
-                status.textContent = "";
+                // Show per-series market counts so user knows if a series had no data
+                if (r.series_counts && Object.keys(r.series_counts).length) {
+                    const parts = Object.entries(r.series_counts).map(([s, n]) => `${s}: ${n}`);
+                    status.textContent = `Markets found — ${parts.join(" | ")}`;
+                } else {
+                    status.textContent = "⚠️ 0 markets found. Use 🔍 Search Kalshi to find valid series tickers.";
+                }
             } catch (e) {
                 status.textContent = `Request failed: ${e.message}`;
             } finally {

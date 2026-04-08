@@ -321,5 +321,6 @@ class WeatherBacktestResult(BaseModel):
     avg_win_cents: float = 0.0
     avg_loss_cents: float = 0.0
     max_drawdown_cents: int = 0
+    series_counts: dict = {}   # {series_ticker: markets_found}
     equity_curve: List[EquityPoint] = []
     trade_log: List[WeatherTradeRecord] = []

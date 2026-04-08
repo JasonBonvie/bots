@@ -854,6 +854,22 @@ async def run_backtest(params: BacktestParams):
         raise HTTPException(status_code=500, detail=f"Backtest failed: {str(exc)}")
 
 
+@app.get("/api/weather/search")
+async def search_weather_series(keyword: str = "weather"):
+    """
+    Search Kalshi markets by keyword and return unique series tickers.
+    Use this to discover real series names before running a backtest.
+    """
+    if not kalshi_feed.client:
+        raise HTTPException(status_code=400, detail="Kalshi client not configured.")
+    try:
+        results = await kalshi_feed.client.search_series_by_keyword(keyword)
+        return {"keyword": keyword, "series": results}
+    except Exception as exc:
+        logger.error(f"Weather search error: {exc}")
+        raise HTTPException(status_code=500, detail=str(exc))
+
+
 @app.post("/api/backtest/weather", response_model=WeatherBacktestResult)
 async def run_weather_backtest(params: WeatherBacktestParams):
     """

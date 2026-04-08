@@ -53,6 +53,12 @@ class WeatherBacktestEngine:
         all_markets.sort(key=lambda m: m.get("close_time", ""))
         total_markets_checked = len(all_markets)
 
+        # Track how many markets were fetched per series
+        series_counts = {}
+        for m in all_markets:
+            s = m.get("_series", "unknown")
+            series_counts[s] = series_counts.get(s, 0) + 1
+
         for market in all_markets:
             ticker = market.get("ticker", "")
             result = market.get("result", "")   # "yes" or "no"
@@ -133,6 +139,7 @@ class WeatherBacktestEngine:
                 max_dd = dd
 
         return WeatherBacktestResult(
+            series_counts=series_counts,
             total_markets_checked=total_markets_checked,
             trades_taken=len(trades),
             wins=wins,

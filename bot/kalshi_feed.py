@@ -592,6 +592,39 @@ class KalshiClient:
             logger.error(f"Error fetching fills: {e}")
             return []
 
+    async def search_series_by_keyword(
+        self,
+        keyword: str,
+        statuses: list = None,
+        limit: int = 200,
+    ) -> List[Dict]:
+        """
+        Search Kalshi markets by keyword and return unique series info.
+
+        Fetches markets across requested statuses, filters by keyword in
+        ticker/title, and returns deduplicated series entries with counts.
+
+        Returns list of dicts: {series_ticker, example_title, market_count}
+        """
+        if statuses is None:
+            statuses = ["open", "closed", "settled"]
+
+        kw = keyword.strip().lower()
+        series_map: dict = {}
+
+        for status in statuses:
+            markets = await self.get_markets(status=status, limit=limit)
+            for m in markets:
+                ticker = m.get("ticker", "")
+                title = m.get("title", "")
+                if kw in ticker.lower() or kw in title.lower():
+                    series = ticker.split("-")[0] if "-" in ticker else ticker
+                    if series not in series_map:
+                        series_map[series] = {"series_ticker": series, "example_title": title, "market_count": 0}
+                    series_map[series]["market_count"] += 1
+
+        return sorted(series_map.values(), key=lambda x: -x["market_count"])
+
     async def get_settled_markets(
         self,
         series_ticker: str,
